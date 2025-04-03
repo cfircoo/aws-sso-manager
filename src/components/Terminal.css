@@ -1,0 +1,82 @@
+.terminal-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #1e1e1e;
+  color: #f8f8f8;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #444;
+  font-family: monospace;
+  z-index: 1000;
+}
+
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #444;
+}
+
+.terminal-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.close-button:hover {
+  color: #fff;
+}
+
+.terminal-output {
+  flex: 1;
+  padding: 8px 12px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.terminal-output pre {
+  margin: 0;
+}
+
+.terminal-input-form {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid #444;
+}
+
+.terminal-prompt {
+  color: #4af626;
+  margin-right: 8px;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #f8f8f8;
+  font-family: monospace;
+  font-size: 13px;
+  outline: none;
+}
+
+.terminal-input::placeholder {
+  color: #777;
+} 

@@ -1,0 +1,4 @@
+Generate a provisioning profile for the distribution version of your app and place it here. 
+You can name this file whatever name you want but it must have the .provisionprofile extension.
+The file path must be in the package.json file:
+  "provisioningProfile": "build/MacAppStore.provisionprofile",
