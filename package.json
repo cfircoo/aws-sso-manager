@@ -1,6 +1,6 @@
 {
   "name": "aws-sso-manager",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "AWS SSO Manager for easy role switching using React and Electron",
   "main": "main.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "start": "electron .",
     "build-mac": "npm run build && electron-builder --mac",
+    "build-win": "npm run build && electron-builder --win",
     "create-dmg": "create-dmg --no-code-sign --dmg-title=\"aws-sso-manager\" --out=dist/ dist/mac-arm64/aws-sso-manager.app",
     "make-dmg": "hdiutil create -volname \"AWS SSO Manager\" -srcfolder \"release/mac-arm64/AWS SSO Manager.app\" -ov -format UDZO release/aws-sso-manager.dmg"
   },
@@ -128,6 +129,24 @@
       ],
       "icon": "build/icon.icns",
       "hardenedRuntime": true
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AWS SSO Manager"
     },
     "files": [
       "dist/**/*",

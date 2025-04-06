@@ -1,7 +1,8 @@
 import { AwsAccount } from '../types/aws';
-import { Star, Copy, Terminal, Check } from 'lucide-react';
-import { useState } from 'react';
+import { Star, Copy, Terminal, Check, Bookmark } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
 
 interface AccountItemProps {
   account: AwsAccount;
@@ -12,6 +13,7 @@ interface AccountItemProps {
   onProfileChanged: () => void;
   isDefaultProfile: boolean;
   accessToken: string | null;
+  activeTab?: 'all' | 'favorites' | 'quick-access';
 }
 
 interface Role {
@@ -31,13 +33,15 @@ const AccountItem = ({
   onOpenTerminal,
   onProfileChanged,
   isDefaultProfile,
-  accessToken 
+  accessToken,
+  activeTab = 'all'
 }: AccountItemProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<any>(null);
   const [isLoadingCreds, setIsLoadingCreds] = useState(false);
+  const { isQuickAccess, toggleQuickAccess } = useQuickAccessRoles();
   
   // Check if window.awsSso is available - correctly as a boolean
   const awsSsoAvailable = typeof window !== 'undefined' && !!window.awsSso;
@@ -63,6 +67,19 @@ const AccountItem = ({
     retry: 3,
     retryDelay: 5000,
   });
+
+  // Filter roles for quick access tab
+  const displayRoles = useMemo(() => {
+    if (!data?.roles || data.roles.length === 0) return [];
+    
+    // If we're in quick access mode, only show quick access roles
+    if (activeTab === 'quick-access') {
+      return data.roles.filter(role => isQuickAccess(account.accountId, role.roleName));
+    }
+    
+    // Otherwise show all roles
+    return data.roles;
+  }, [data?.roles, activeTab, account.accountId, isQuickAccess]);
 
   // Handle copying credentials using the proper flow
   const handleCopyCredentials = async (accountId: string, roleName: string) => {
@@ -230,13 +247,13 @@ const AccountItem = ({
             }}>
               Loading roles...
             </div>
-          ) : data?.roles && data.roles.length > 0 ? (
+          ) : displayRoles.length > 0 ? (
             <div style={{ 
               display: 'flex', 
               flexDirection: 'column',
               gap: '8px'
             }}>
-              {data.roles.map((role) => (
+              {displayRoles.map((role) => (
                 <div 
                   key={role.roleName}
                   style={{
@@ -251,6 +268,29 @@ const AccountItem = ({
                 >
                   <div style={{ fontWeight: 500 }}>{role.roleName}</div>
                   <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleQuickAccess(account.accountId, role.roleName, account.accountName);
+                      }}
+                      title={isQuickAccess(account.accountId, role.roleName) ? "Remove from Quick Access" : "Add to Quick Access"}
+                      style={{
+                        backgroundColor: 'transparent',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '4px',
+                        padding: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: isQuickAccess(account.accountId, role.roleName) ? '#0366d6' : '#666666'
+                      }}
+                    >
+                      <Bookmark 
+                        size={16} 
+                        fill={isQuickAccess(account.accountId, role.roleName) ? "currentColor" : "none"}
+                      />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -332,6 +372,14 @@ const AccountItem = ({
                   </div>
                 </div>
               ))}
+            </div>
+          ) : activeTab === 'quick-access' ? (
+            <div style={{ 
+              textAlign: 'center',
+              color: '#666666',
+              padding: '8px'
+            }}>
+              No quick access roles for this account
             </div>
           ) : (
             <div style={{ 

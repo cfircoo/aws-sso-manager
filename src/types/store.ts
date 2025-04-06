@@ -27,4 +27,10 @@ export interface StoreSchema {
     accountId: string;
     timestamp: number;
   }>;
+  quickAccessRoles: Array<{
+    accountId: string;
+    accountName?: string;
+    roleName: string;
+    timestamp: number;
+  }>;
 } 

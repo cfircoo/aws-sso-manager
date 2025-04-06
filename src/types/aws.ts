@@ -15,6 +15,13 @@ export interface FavoriteAccount {
   timestamp: number;
 }
 
+export interface QuickAccessRole {
+  accountId: string;
+  accountName?: string;
+  roleName: string;
+  timestamp: number;
+}
+
 export interface AwsRole {
   roleName: string;
   accountId: string;
