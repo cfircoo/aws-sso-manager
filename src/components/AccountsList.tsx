@@ -317,8 +317,8 @@ const AccountsList = ({
                       <Copy size={16} />
                     </button>
                     <button
-                      onClick={() => onOpenTerminal(role.accountId, role.roleName)}
-                      title="Open Terminal"
+                      onClick={() => onOpenTerminal(role.accountId, role.roleName, false)}
+                      title="Open Built-in Terminal"
                       style={{
                         backgroundColor: '#7e57c2',
                         color: 'white',
@@ -335,7 +335,7 @@ const AccountsList = ({
                     </button>
                     <button
                       onClick={() => onOpenTerminal(role.accountId, role.roleName, true)}
-                      title="Open System Terminal (zsh)"
+                      title="Open External Terminal"
                       style={{
                         backgroundColor: '#2e7d32',
                         color: 'white',
