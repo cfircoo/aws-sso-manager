@@ -29,6 +29,53 @@ const AccountsList = ({
   const [selectedTab, setSelectedTab] = useState<'all' | 'favorites' | 'quick-access'>('all');
   const { favorites, toggleFavorite, isFavorite } = useFavorites();
   const { quickAccessRoles, toggleQuickAccess } = useQuickAccessRoles();
+  const [showCredentials, setShowCredentials] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [credentials, setCredentials] = useState<any>(null);
+  const [isLoadingCreds, setIsLoadingCreds] = useState(false);
+
+  // Add handleCopyCredentials function
+  const handleCopyCredentials = async (accountId: string, roleName: string) => {
+    try {
+      setIsLoadingCreds(true);
+      setSelectedRole(roleName);
+      
+      if (!accessToken) throw new Error('No access token');
+      
+      // Get the role credentials
+      const result = await window.awsSso.getRoleCredentials(accessToken, accountId, roleName);
+      
+      if (result && result.accessKeyId) {
+        setCredentials({
+          accessKeyId: result.accessKeyId,
+          secretAccessKey: result.secretAccessKey,
+          sessionToken: result.sessionToken,
+          expiration: new Date(result.expiration).toLocaleString()
+        });
+        setShowCredentials(true);
+      } else {
+        throw new Error('No credentials returned');
+      }
+    } catch (err) {
+      console.error('Error getting credentials:', err);
+      alert('Failed to get credentials: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally {
+      setIsLoadingCreds(false);
+    }
+  };
+
+  // Add copyToClipboard helper function
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        console.log('Copied to clipboard');
+        alert('Copied to clipboard');
+      })
+      .catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard');
+      });
+  };
 
   // Handle setting default profile
   const handleSetDefaultProfile = async (accountId: string, roleName: string) => {
@@ -254,7 +301,7 @@ const AccountsList = ({
                       />
                     </button>
                     <button
-                      onClick={() => onRoleSelect(role.accountId, role.roleName)}
+                      onClick={() => handleCopyCredentials(role.accountId, role.roleName)}
                       title="Copy Credentials"
                       style={{
                         backgroundColor: 'transparent',
@@ -372,6 +419,201 @@ const AccountsList = ({
           </>
         )}
       </div>
+
+      {/* Credentials Modal */}
+      {showCredentials && credentials && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }} onClick={() => setShowCredentials(false)}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '24px',
+            width: '90%',
+            maxWidth: '600px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ 
+              fontSize: '18px', 
+              marginTop: 0, 
+              marginBottom: '16px' 
+            }}>
+              AWS Credentials for {selectedRole}
+            </h3>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Access Key ID:</div>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  backgroundColor: '#f5f5f5'
+                }}>
+                  <code style={{ wordBreak: 'break-all' }}>{credentials.accessKeyId}</code>
+                  <button 
+                    onClick={() => copyToClipboard(credentials.accessKeyId)}
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '4px',
+                      padding: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Secret Access Key:</div>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  backgroundColor: '#f5f5f5'
+                }}>
+                  <code style={{ wordBreak: 'break-all' }}>{credentials.secretAccessKey}</code>
+                  <button 
+                    onClick={() => copyToClipboard(credentials.secretAccessKey)}
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '4px',
+                      padding: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Session Token:</div>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  backgroundColor: '#f5f5f5'
+                }}>
+                  <code style={{ 
+                    wordBreak: 'break-all', 
+                    maxHeight: '100px', 
+                    overflow: 'auto' 
+                  }}>
+                    {credentials.sessionToken}
+                  </code>
+                  <button 
+                    onClick={() => copyToClipboard(credentials.sessionToken)}
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '4px',
+                      padding: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              </div>
+              
+              <div>
+                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Expiration:</div>
+                <div style={{ 
+                  padding: '8px',
+                  borderRadius: '4px',
+                  backgroundColor: '#f5f5f5'
+                }}>
+                  {credentials.expiration}
+                </div>
+              </div>
+            </div>
+            
+            <div style={{ 
+              marginTop: '16px', 
+              display: 'flex', 
+              justifyContent: 'space-between' 
+            }}>
+              <button
+                onClick={() => {
+                  const envFormat = `export AWS_ACCESS_KEY_ID=${credentials.accessKeyId}
+export AWS_SECRET_ACCESS_KEY=${credentials.secretAccessKey}
+export AWS_SESSION_TOKEN=${credentials.sessionToken}`;
+                  copyToClipboard(envFormat);
+                }}
+                style={{
+                  backgroundColor: '#f0f0f0',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  padding: '8px 16px',
+                  cursor: 'pointer'
+                }}
+              >
+                Copy as ENV Variables
+              </button>
+              
+              <button
+                onClick={() => setShowCredentials(false)}
+                style={{
+                  backgroundColor: '#0066cc',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '8px 16px',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading overlay for credentials */}
+      {isLoadingCreds && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '24px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }}>
+            Loading credentials...
+          </div>
+        </div>
+      )}
     </div>
   );
 };
