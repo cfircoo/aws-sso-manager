@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSso } from '../contexts/SsoContext';
 import { AppSettings } from '../types/store';
-import { LogOut } from 'lucide-react';
+import { LogOut, Trash } from 'lucide-react';
+import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
+import { useElectron } from '../contexts/ElectronContext';
 
 interface SettingsFormProps {
   onClose?: () => void;
@@ -11,6 +13,8 @@ interface SettingsFormProps {
 
 export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: SettingsFormProps) {
   const { appSettings, updateAppSettings } = useSso();
+  const { quickAccessRoles } = useQuickAccessRoles();
+  const electron = useElectron();
   const [formValues, setFormValues] = useState<AppSettings>({
     ssoUrl: '',
     ssoRegion: '',
@@ -61,6 +65,18 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
     if (onLogout) {
       if (onClose) onClose(); // Close settings before logout
       await onLogout();
+    }
+  };
+
+  const handleClearQuickAccessRoles = async () => {
+    if (window.confirm('Are you sure you want to clear all quick access roles?')) {
+      try {
+        await electron.clearQuickAccessRoles();
+        alert('All quick access roles have been cleared');
+      } catch (error) {
+        console.error('Error clearing quick access roles:', error);
+        alert('Failed to clear quick access roles');
+      }
     }
   };
 
@@ -202,6 +218,53 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
             value={formValues.codeArtifactRepo}
             onChange={handleChange}
           />
+        </div>
+
+        {/* Quick Access Settings */}
+        <div style={{ 
+          marginTop: '24px', 
+          marginBottom: '24px', 
+          borderTop: '1px solid #e5e7eb',
+          paddingTop: '16px'
+        }}>
+          <h3 style={{ 
+            fontSize: '1rem', 
+            fontWeight: 'bold', 
+            color: '#111827', 
+            marginBottom: '12px' 
+          }}>
+            Quick Access
+          </h3>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 500 }}>Quick Access Roles</div>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                {quickAccessRoles.length} role{quickAccessRoles.length !== 1 ? 's' : ''} in quick access
+              </div>
+            </div>
+            <button 
+              type="button"
+              onClick={handleClearQuickAccessRoles}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: quickAccessRoles.length === 0 ? '#f3f4f6' : '#fee2e2',
+                color: quickAccessRoles.length === 0 ? '#9ca3af' : '#dc2626',
+                border: 'none',
+                padding: '8px 12px',
+                borderRadius: '4px',
+                fontSize: '0.875rem',
+                gap: '6px',
+                cursor: quickAccessRoles.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: quickAccessRoles.length === 0 ? 0.5 : 1
+              }}
+              disabled={quickAccessRoles.length === 0}
+            >
+              <Trash size={16} />
+              <span>Clear All</span>
+            </button>
+          </div>
         </div>
         
         <div style={{ 

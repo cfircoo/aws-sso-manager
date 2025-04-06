@@ -20,7 +20,7 @@ const SimpleApp = () => {
   } = useSsoContext();
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'favorites' | 'quick-access'>('all');
   const [expandedAccountId, setExpandedAccountId] = useState<string | null>(null);
   const [ssoConfig, setSsoConfig] = useState({
     region: 'us-east-1',

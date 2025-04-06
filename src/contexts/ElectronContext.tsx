@@ -1,6 +1,6 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { AppSettings } from '../types/store';
-import { FavoriteAccount } from '../types/aws';
+import { FavoriteAccount, QuickAccessRole } from '../types/aws';
 
 // Define interface for our Electron context
 interface ElectronContextType {
@@ -17,6 +17,10 @@ interface ElectronContextType {
   getFavorites: () => Promise<FavoriteAccount[]>;
   addFavorite: (accountId: string) => Promise<void>;
   removeFavorite: (accountId: string) => Promise<void>;
+  getQuickAccessRoles: () => Promise<QuickAccessRole[]>;
+  addQuickAccessRole: (accountId: string, roleName: string, accountName?: string) => Promise<void>;
+  removeQuickAccessRole: (accountId: string, roleName: string) => Promise<void>;
+  clearQuickAccessRoles: () => Promise<void>;
   
   // AWS SSO functions
   init: (region: string) => Promise<void>;
@@ -40,6 +44,7 @@ const ElectronContext = createContext<ElectronContextType | undefined>(undefined
 export const ElectronProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isElectronAvailable, setIsElectronAvailable] = useState<boolean>(false);
   const [favorites, setFavorites] = useState<FavoriteAccount[]>([]);
+  const [quickAccessRoles, setQuickAccessRoles] = useState<QuickAccessRole[]>([]);
   
   // Check if we're running in Electron
   useEffect(() => {
@@ -68,6 +73,20 @@ export const ElectronProvider: React.FC<{ children: ReactNode }> = ({ children }
       };
       
       initializeFavorites();
+    }
+  }, [isElectronAvailable]);
+
+  // Initialize quick access roles when the component mounts
+  useEffect(() => {
+    if (isElectronAvailable) {
+      const initializeQuickAccessRoles = async () => {
+        console.log('[ElectronContext] Initializing quick access roles from store');
+        const storedRoles = await window.electronStore.get<QuickAccessRole[]>('quickAccessRoles') || [];
+        console.log('[ElectronContext] Loaded quick access roles:', storedRoles);
+        setQuickAccessRoles(storedRoles);
+      };
+      
+      initializeQuickAccessRoles();
     }
   }, [isElectronAvailable]);
   
@@ -223,6 +242,73 @@ export const ElectronProvider: React.FC<{ children: ReactNode }> = ({ children }
     await window.electronStore.set('favorites', updatedFavorites);
   };
   
+  // Quick access roles methods
+  const getQuickAccessRoles = async (): Promise<QuickAccessRole[]> => {
+    if (!isElectronAvailable) return [];
+    // Return stored quick access roles from state first for better performance
+    if (quickAccessRoles.length > 0) {
+      console.log('[ElectronContext] Returning quick access roles from memory:', quickAccessRoles);
+      return quickAccessRoles;
+    }
+    // Fallback to fetching from electron store
+    console.log('[ElectronContext] Fetching quick access roles from store');
+    const storedRoles = await window.electronStore.get<QuickAccessRole[]>('quickAccessRoles') || [];
+    console.log('[ElectronContext] Fetched quick access roles from store:', storedRoles);
+    return storedRoles;
+  };
+  
+  const addQuickAccessRole = async (accountId: string, roleName: string, accountName?: string): Promise<void> => {
+    if (!isElectronAvailable) return;
+    
+    console.log(`[ElectronContext] Adding quick access role ${accountId}/${roleName}`);
+    const currentRoles = await getQuickAccessRoles();
+    
+    // Check if already in quick access roles
+    if (!currentRoles.some(role => role.accountId === accountId && role.roleName === roleName)) {
+      const updatedRoles = [...currentRoles, {
+        accountId,
+        roleName,
+        accountName,
+        timestamp: Date.now()
+      }];
+      // Update state for immediate UI reflection
+      console.log('[ElectronContext] Updating quick access roles in memory:', updatedRoles);
+      setQuickAccessRoles(updatedRoles);
+      // Persist to storage
+      console.log('[ElectronContext] Persisting quick access roles to store');
+      await window.electronStore.set('quickAccessRoles', updatedRoles);
+    } else {
+      console.log(`[ElectronContext] Role ${accountId}/${roleName} already in quick access, skipping`);
+    }
+  };
+  
+  const removeQuickAccessRole = async (accountId: string, roleName: string): Promise<void> => {
+    if (!isElectronAvailable) return;
+    
+    console.log(`[ElectronContext] Removing quick access role ${accountId}/${roleName}`);
+    const currentRoles = await getQuickAccessRoles();
+    const updatedRoles = currentRoles.filter(
+      role => !(role.accountId === accountId && role.roleName === roleName)
+    );
+    // Update state for immediate UI reflection
+    console.log('[ElectronContext] Updating quick access roles in memory after removal:', updatedRoles);
+    setQuickAccessRoles(updatedRoles);
+    // Persist to storage
+    console.log('[ElectronContext] Persisting updated quick access roles to store after removal');
+    await window.electronStore.set('quickAccessRoles', updatedRoles);
+  };
+  
+  const clearQuickAccessRoles = async (): Promise<void> => {
+    if (!isElectronAvailable) return;
+    
+    console.log('[ElectronContext] Clearing all quick access roles');
+    // Update state for immediate UI reflection
+    setQuickAccessRoles([]);
+    // Persist to storage
+    console.log('[ElectronContext] Persisting empty quick access roles to store');
+    await window.electronStore.set('quickAccessRoles', []);
+  };
+  
   // AWS SSO functions
   const init = async (region: string): Promise<void> => {
     if (!isElectronAvailable) return;
@@ -297,6 +383,10 @@ export const ElectronProvider: React.FC<{ children: ReactNode }> = ({ children }
     getFavorites,
     addFavorite,
     removeFavorite,
+    getQuickAccessRoles,
+    addQuickAccessRole,
+    removeQuickAccessRole,
+    clearQuickAccessRoles,
     
     // AWS SSO functions
     init,
