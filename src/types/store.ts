@@ -7,6 +7,11 @@ export interface AppSettings {
   codeArtifactRole: string;
   codeArtifactDomain: string;
   codeArtifactRepo: string;
+  defaultProfile?: {
+    accountId: string;
+    roleName: string;
+    found: boolean;
+  } | null;
 }
 
 export interface StoreSchema {

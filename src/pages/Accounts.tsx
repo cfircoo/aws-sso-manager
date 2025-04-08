@@ -79,6 +79,7 @@ const Accounts = () => {
   });
   const [initialStatusCheckDone, setInitialStatusCheckDone] = useState(false);
   const [isEcrLoggingIn, setIsEcrLoggingIn] = useState(false);
+  const [initialAuthCheckDone, setInitialAuthCheckDone] = useState(false);
 
   // Initialize local ECR status from context
   useEffect(() => {
@@ -94,9 +95,9 @@ const Accounts = () => {
       return;
     }
     
-    if (sessionTimeLeft < 5 * 60 * 1000) { // Less than 5 minutes
+    if (sessionTimeLeft < 60 * 60 * 1000) { // Less than 1 hour
       setSessionTimeStatus('critical');
-    } else if (sessionTimeLeft < 15 * 60 * 1000) { // Less than 15 minutes
+    } else if (sessionTimeLeft < 120 * 60 * 1000) { // Less than 2 hours
       setSessionTimeStatus('warning');
     } else {
       setSessionTimeStatus('normal');
@@ -105,11 +106,21 @@ const Accounts = () => {
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (!isAuthenticated || !accessToken) {
-      console.log('Accounts: User is not authenticated, redirecting to login');
-      navigate('/login');
+    // Perform the initial check
+    if (!initialAuthCheckDone) {
+      if (!isAuthenticated || !accessToken) {
+        console.log('Accounts: Initial check failed - User is not authenticated, redirecting to login');
+        navigate('/login');
+      }
+      setInitialAuthCheckDone(true);
+    } else {
+      // After the initial check, only redirect if authentication is lost
+      if (!isAuthenticated) {
+        console.log('Accounts: Authentication lost, redirecting to login');
+        navigate('/login');
+      }
     }
-  }, [isAuthenticated, accessToken, navigate]);
+  }, [isAuthenticated, accessToken, navigate, initialAuthCheckDone]);
 
   // Trigger CodeArtifact status check when the page loads
   // This will cause the indicator to appear in red initially
@@ -394,7 +405,7 @@ const Accounts = () => {
           accounts={queries?.accounts?.data || []}
           onRoleSelect={handleRoleSelect}
           onOpenTerminal={handleOpenTerminal}
-          defaultProfile={appSettings?.defaultProfile}
+          defaultProfile={appSettings?.defaultProfile ?? undefined}
           onProfileChanged={() => console.log('Profile changed')}
           searchTerm={searchQuery}
           accessToken={accessToken}
