@@ -82,7 +82,9 @@ export const SsoProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ecrRepo: '',
     ecrRole: '',
     codeArtifactAccount: '',
-    codeArtifactRole: ''
+    codeArtifactRole: '',
+    codeArtifactDomain: '',
+    codeArtifactRepo: ''
   });
   
   // Get the Electron functions
@@ -163,20 +165,40 @@ export const SsoProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Refresh session time function
   const refreshSessionTime = async () => {
     try {
+      console.log('[SsoContext] Refreshing session time...');
+      
+      // Get the current session from store to check if it's valid
+      const session = await electron.getSession();
+      if (!session.accessToken || !session.expiration) {
+        console.log('[SsoContext] No valid session found during refresh, marking as not authenticated');
+        setSessionTimeLeft(null);
+        setIsAuthenticated(false);
+        return 0;
+      }
+      
+      // Calculate current time left
+      const timeLeft = session.expiration - Date.now();
+      console.log(`[SsoContext] Session time left: ${timeLeft}ms`);
+      
+      // Check if session is expired
+      if (timeLeft <= 0) {
+        console.log('[SsoContext] Session expired during refresh');
+        setSessionTimeLeft(null);
+        setIsAuthenticated(false);
+        return 0;
+      }
+      
       // Update the session start time in the store
       const newStartTime = await electron.updateSessionStartTime();
       
-      // Recalculate session time left
-      if (sessionExpiration) {
-        const timeLeft = sessionExpiration - Date.now();
-        setSessionTimeLeft(timeLeft > 0 ? timeLeft : null);
-        setIsAuthenticated(timeLeft > 0);
-        return timeLeft;
-      }
-      
-      return 0;
+      // Update state with current values
+      setSessionTimeLeft(timeLeft);
+      setIsAuthenticated(true);
+      return timeLeft;
     } catch (error) {
       console.error('Error refreshing session time:', error);
+      setIsAuthenticated(false);
+      setSessionTimeLeft(null);
       return 0;
     }
   };
@@ -708,6 +730,28 @@ export const SsoProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw error;
     }
   };
+
+  // Add periodic polling for session status
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    console.log('[SsoContext] Setting up periodic session validity check');
+    
+    const checkSessionValidity = async () => {
+      console.log('[SsoContext] Performing periodic session validity check');
+      await refreshSessionTime();
+    };
+    
+    // Check immediately on mount
+    checkSessionValidity();
+    
+    // Then set up interval
+    const interval = setInterval(checkSessionValidity, 60000); // Check every minute
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isAuthenticated]);
 
   // Trigger immediate ECR status check when authenticated
   useEffect(() => {

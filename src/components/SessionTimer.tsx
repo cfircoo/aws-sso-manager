@@ -11,7 +11,49 @@ export const SessionTimer = ({
   sessionTimeStatus = 'normal',
   onRenewSession
 }: SessionTimerProps) => {
-  if (!sessionTimeLeft) return null;
+  // Show an "Expired" message instead of returning null
+  if (!sessionTimeLeft) {
+    return (
+      <div style={{ 
+        display: 'flex',
+        alignItems: 'center',
+        marginLeft: '16px',
+        gap: '8px'
+      }}>
+        <span style={{ 
+          fontSize: '0.875rem',
+          color: '#ef4444', // red
+          fontWeight: 'bold'
+        }}>
+          Session: Expired
+        </span>
+        {onRenewSession && (
+          <button
+            onClick={onRenewSession}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2px 6px',
+              fontSize: '0.75rem',
+              backgroundColor: '#fee2e2',
+              color: '#b91c1c',
+              border: '1px solid #fca5a5',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontWeight: 'bold',
+              height: '22px',
+              lineHeight: 1
+            }}
+            title="Renew your AWS SSO session"
+          >
+            Login
+          </button>
+        )}
+      </div>
+    );
+  }
   
   // Format time as hh:mm:ss
   const formatTime = (timeString: string) => {
@@ -21,6 +63,9 @@ export const SessionTimer = ({
     // Assume it's milliseconds
     const milliseconds = parseInt(timeString, 10);
     if (isNaN(milliseconds)) return timeString;
+    
+    // Check for expired session (zero or negative milliseconds)
+    if (milliseconds <= 0) return "Expired";
     
     const hours = Math.floor(milliseconds / (1000 * 60 * 60));
     const minutes = Math.floor((milliseconds % (1000 * 60 * 60)) / (1000 * 60));
@@ -37,6 +82,10 @@ export const SessionTimer = ({
     textColor = '#ef4444'; // red
   }
   
+  // Get formatted time and check if it's "Expired"
+  const formattedTime = formatTime(sessionTimeLeft);
+  const isExpired = formattedTime === "Expired";
+  
   return (
     <div style={{ 
       display: 'flex',
@@ -46,10 +95,10 @@ export const SessionTimer = ({
     }}>
       <span style={{ 
         fontSize: '0.875rem',
-        color: textColor,
-        fontWeight: sessionTimeStatus !== 'normal' ? 'bold' : 'normal'
+        color: isExpired ? '#ef4444' : textColor,
+        fontWeight: isExpired || sessionTimeStatus !== 'normal' ? 'bold' : 'normal'
       }}>
-        Session: {formatTime(sessionTimeLeft)}
+        Session: {formattedTime}
       </span>
       {onRenewSession && (
         <button
@@ -60,19 +109,19 @@ export const SessionTimer = ({
             justifyContent: 'center',
             padding: '2px 6px',
             fontSize: '0.75rem',
-            backgroundColor: sessionTimeStatus === 'critical' ? '#fee2e2' : sessionTimeStatus === 'warning' ? '#fef3c7' : '#f3f4f6',
-            color: sessionTimeStatus === 'critical' ? '#b91c1c' : sessionTimeStatus === 'warning' ? '#92400e' : '#374151',
-            border: `1px solid ${sessionTimeStatus === 'critical' ? '#fca5a5' : sessionTimeStatus === 'warning' ? '#fcd34d' : '#d1d5db'}`,
+            backgroundColor: isExpired || sessionTimeStatus === 'critical' ? '#fee2e2' : sessionTimeStatus === 'warning' ? '#fef3c7' : '#f3f4f6',
+            color: isExpired || sessionTimeStatus === 'critical' ? '#b91c1c' : sessionTimeStatus === 'warning' ? '#92400e' : '#374151',
+            border: `1px solid ${isExpired || sessionTimeStatus === 'critical' ? '#fca5a5' : sessionTimeStatus === 'warning' ? '#fcd34d' : '#d1d5db'}`,
             borderRadius: '4px',
             cursor: 'pointer',
             transition: 'all 0.2s',
-            fontWeight: sessionTimeStatus !== 'normal' ? 'bold' : 'normal',
+            fontWeight: isExpired || sessionTimeStatus !== 'normal' ? 'bold' : 'normal',
             height: '22px',
             lineHeight: 1
           }}
           title="Renew your AWS SSO session"
         >
-          Renew
+          {isExpired ? "Login" : "Renew"}
         </button>
       )}
     </div>

@@ -122,6 +122,27 @@ const Accounts = () => {
     }
   }, [isAuthenticated, accessToken, navigate, initialAuthCheckDone]);
 
+  // Add periodic session validity check
+  useEffect(() => {
+    // Only set up the interval if authenticated
+    if (!isAuthenticated || !accessToken) return;
+    
+    console.log('Setting up periodic session check interval');
+    
+    const checkInterval = setInterval(() => {
+      // If session is expired or will expire in the next minute
+      if (!sessionTimeLeft || sessionTimeLeft <= 60000) {
+        console.log('Session expired or about to expire, redirecting to login');
+        clearInterval(checkInterval);
+        navigate('/login');
+      }
+    }, 30000); // Check every 30 seconds
+    
+    return () => {
+      clearInterval(checkInterval);
+    };
+  }, [isAuthenticated, accessToken, sessionTimeLeft, navigate]);
+
   // Trigger CodeArtifact status check when the page loads
   // This will cause the indicator to appear in red initially
   useEffect(() => {
