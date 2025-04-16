@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { useFavorites } from '../hooks/useFavorites';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
 import AccountItem from './AccountItem';
-import { Bookmark, Terminal, Copy, Check } from 'lucide-react';
+import { Bookmark, Terminal, Copy, Check, ExternalLink } from 'lucide-react';
 
 interface AccountsListProps {
   accounts: AwsAccount[];
@@ -98,6 +98,24 @@ const AccountsList = ({
     } catch (err) {
       console.error('Error setting default profile:', err);
       alert(`Error setting default profile: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
+
+  // Function to open AWS Console with the selected role
+  const handleOpenAwsConsole = async (accountId: string, roleName: string) => {
+    try {
+      if (!accessToken) throw new Error('No access token');
+      
+      // Use the AWS SSO portal URL format that directly specifies account and role
+      // This format will properly handle the authentication and role assumption
+      const ssoPortalUrl = `https://d-90676c94d8.awsapps.com/start/#/console?account_id=${accountId}&role_name=${roleName}&referrer=accessPortal`;
+      
+      // Open AWS Console in a new tab
+      window.open(ssoPortalUrl, '_blank');
+      
+    } catch (err) {
+      console.error('Error opening AWS Console:', err);
+      alert('Failed to open AWS Console: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
   };
 
@@ -337,6 +355,23 @@ const AccountsList = ({
                       }}
                     >
                       <Copy size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleOpenAwsConsole(role.accountId, role.roleName)}
+                      title="Open AWS Console"
+                      style={{
+                        backgroundColor: '#0066cc',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <ExternalLink size={16} />
                     </button>
                     <button
                       onClick={() => onOpenTerminal(role.accountId, role.roleName, false)}
