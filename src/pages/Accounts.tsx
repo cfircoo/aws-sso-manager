@@ -9,6 +9,8 @@ import CodeArtifactStatus from '../components/CodeArtifactStatus';
 import EcrStatus from '../components/EcrStatus';
 import { SettingsForm } from '../components/SettingsForm';
 import { useElectron } from '../contexts/ElectronContext';
+import { RefreshCw, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const Accounts = () => {
   const navigate = useNavigate();
@@ -32,6 +34,7 @@ const Accounts = () => {
   } = useSsoContext();
   
   const [isRenewingSession, setIsRenewingSession] = useState(false);
+  const [isRefreshingAccounts, setIsRefreshingAccounts] = useState(false);
   
   // Load app version from package.json via Electron
   useEffect(() => {
@@ -326,6 +329,23 @@ const Accounts = () => {
     setShowSettings(!showSettings);
   };
 
+  // Handle account list refresh
+  const handleRefreshAccounts = async () => {
+    if (isRefreshingAccounts || !queries?.accounts?.refetch) return;
+    
+    try {
+      setIsRefreshingAccounts(true);
+      await queries.accounts.refetch();
+      console.log('Accounts: Successfully refreshed account list');
+      toast.success('Account list refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing accounts:', error);
+      toast.error('Failed to refresh accounts. Please try again.');
+    } finally {
+      setIsRefreshingAccounts(false);
+    }
+  };
+
   return (
     <div style={{ 
       display: 'flex', 
@@ -407,7 +427,38 @@ const Accounts = () => {
       )}
       
       <main style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
-        <div style={{ marginBottom: '20px' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px',
+          marginBottom: '20px' 
+        }}>
+          <button
+            onClick={handleRefreshAccounts}
+            disabled={isRefreshingAccounts}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              background: 'none',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              cursor: isRefreshingAccounts ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              opacity: isRefreshingAccounts ? 0.7 : 1,
+              whiteSpace: 'nowrap'
+            }}
+            title="Refresh account list"
+          >
+            {isRefreshingAccounts ? (
+              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+            <span>{isRefreshingAccounts ? 'Refreshing...' : 'Refresh Accounts'}</span>
+          </button>
+          
           <input
             type="text"
             placeholder="Search accounts..."

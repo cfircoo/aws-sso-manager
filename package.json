@@ -1,6 +1,6 @@
 {
   "name": "aws-sso-manager",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "AWS SSO Manager for easy role switching using React and Electron",
   "main": "main.js",
   "scripts": {
