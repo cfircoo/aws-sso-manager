@@ -481,6 +481,7 @@ const Accounts = () => {
           onProfileChanged={() => console.log('Profile changed')}
           searchTerm={searchQuery}
           accessToken={accessToken}
+          totalAccounts={queries?.accounts?.data?.length || 0}
         />
       </main>
       

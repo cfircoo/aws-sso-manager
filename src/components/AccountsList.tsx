@@ -14,6 +14,7 @@ interface AccountsListProps {
   searchTerm?: string;
   accessToken: string | null;
   activeTab?: 'all' | 'favorites' | 'quick-access';
+  totalAccounts?: number;
 }
 
 const AccountsList = ({ 
@@ -24,7 +25,8 @@ const AccountsList = ({
   onProfileChanged,
   searchTerm,
   accessToken,
-  activeTab = 'all'
+  activeTab = 'all',
+  totalAccounts
 }: AccountsListProps) => {
   const [selectedTab, setSelectedTab] = useState<'all' | 'favorites' | 'quick-access'>('all');
   const { favorites, toggleFavorite, isFavorite } = useFavorites();
@@ -205,11 +207,31 @@ const AccountsList = ({
             color: selectedTab === 'all' ? '#0066cc' : '#666666',
             fontSize: '14px',
             cursor: 'pointer',
-            marginBottom: '-1px'
+            marginBottom: '-1px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}
         >
-          All Accounts
+          <span>All Accounts</span>
+          {totalAccounts !== undefined && (
+            <span style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: selectedTab === 'all' ? '#0066cc' : '#e0e0e0',
+              color: selectedTab === 'all' ? 'white' : '#666666',
+              borderRadius: '50%',
+              width: '20px',
+              height: '20px',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}>
+              {totalAccounts}
+            </span>
+          )}
         </button>
+        
         <button
           onClick={() => setSelectedTab('favorites')}
           style={{
