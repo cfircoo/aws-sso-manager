@@ -426,7 +426,12 @@ const Accounts = () => {
         </div>
       )}
       
-      <main style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
+      <main style={{ 
+        flex: 1, 
+        overflow: 'auto', 
+        padding: '20px',
+        position: 'relative'
+      }}>
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -483,6 +488,28 @@ const Accounts = () => {
           accessToken={accessToken}
           totalAccounts={queries?.accounts?.data?.length || 0}
         />
+        
+        {/* Add loading indicator while accounts are being loaded */}
+        {queries?.accounts?.isLoading && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+            zIndex: 5
+          }}>
+            <Loader2 size={36} style={{ animation: 'spin 1s linear infinite' }} />
+            <div style={{ fontWeight: 500, color: '#333' }}>Loading AWS Accounts...</div>
+          </div>
+        )}
       </main>
       
       {/* Terminal component is kept for backward compatibility but is no longer used */}
