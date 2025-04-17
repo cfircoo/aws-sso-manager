@@ -14,7 +14,12 @@ A modern desktop application built with Electron and React for managing AWS SSO 
 - 📊 ECR and CodeArtifact integration
 - ⚡ Fast role switching with favorites
 - 🎨 Modern and intuitive user interface
-- 🎨 Dark mode support
+- 🌙 Dark mode support
+- 🔍 Powerful search capabilities for quick account and role access
+- 🔄 Manual refresh button for account list updates
+- 🌐 Direct AWS Console access for any role with one click
+- 📊 Visual account counter to track available AWS accounts
+- ⏳ Loading indicators for better user experience
 
 ## Installation
 
@@ -145,7 +150,14 @@ This project is open source under the MIT License with Commons Clause - see the 
 
 ## Version History
 
-- v1.0.2 - Current stable release
+- v1.0.5 - Latest release
+  - Added account refresh functionality
+  - Added direct AWS Console access via role
+  - Improved search interface with better layout
+  - Added account counter badge on tabs
+  - Enhanced loading indicators for better UX
+  - Various UI improvements and bug fixes
+- v1.0.4 - Previous stable release
   - Improved UI/UX
   - Added ECR and CodeArtifact support
   - Bug fixes and performance improvements

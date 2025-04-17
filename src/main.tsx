@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SimpleApp from './SimpleApp';
 import { SsoProvider } from './contexts/SsoContext';
 import { ElectronProvider } from './contexts/ElectronContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Splash from './pages/Splash';
 import Login from './pages/Login';
 import Accounts from './pages/Accounts';
@@ -51,13 +52,15 @@ try {
         <Router>
           <ElectronProvider>
             <SsoProvider>
-              <Toaster position="top-right" />
-              <Routes>
-                <Route path="/" element={<Splash />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/accounts" element={<Accounts />} />
-                <Route path="*" element={<Splash />} />
-              </Routes>
+              <ThemeProvider>
+                <Toaster position="top-right" />
+                <Routes>
+                  <Route path="/" element={<Splash />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/accounts" element={<Accounts />} />
+                  <Route path="*" element={<Splash />} />
+                </Routes>
+              </ThemeProvider>
             </SsoProvider>
           </ElectronProvider>
         </Router>

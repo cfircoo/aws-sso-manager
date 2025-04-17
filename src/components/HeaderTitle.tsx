@@ -9,7 +9,7 @@ interface HeaderTitleProps {
 export const HeaderTitle = ({ title, appVersion, beta = false }: HeaderTitleProps) => {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-      <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#1f2937' }}>
+      <span style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--color-text-primary)' }}>
         {title}
       </span>
       {beta && (
@@ -26,7 +26,7 @@ export const HeaderTitle = ({ title, appVersion, beta = false }: HeaderTitleProp
         </span>
       )}
       {appVersion && (
-        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
           v{appVersion}
         </span>
       )}

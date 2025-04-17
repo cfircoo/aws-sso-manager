@@ -212,7 +212,7 @@ const AccountsList = ({
       <div style={{
         display: 'flex',
         gap: '24px',
-        borderBottom: '1px solid #e0e0e0',
+        borderBottom: '1px solid var(--color-border)',
         marginBottom: '8px'
       }}>
         <button
@@ -221,8 +221,8 @@ const AccountsList = ({
             padding: '8px 0',
             background: 'none',
             border: 'none',
-            borderBottom: selectedTab === 'all' ? '2px solid #0066cc' : '2px solid transparent',
-            color: selectedTab === 'all' ? '#0066cc' : '#666666',
+            borderBottom: selectedTab === 'all' ? `2px solid var(--color-accent)` : '2px solid transparent',
+            color: selectedTab === 'all' ? 'var(--color-accent)' : 'var(--color-text-secondary)',
             fontSize: '14px',
             cursor: 'pointer',
             marginBottom: '-1px',
@@ -237,8 +237,8 @@ const AccountsList = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: selectedTab === 'all' ? '#0066cc' : '#e0e0e0',
-              color: selectedTab === 'all' ? 'white' : '#666666',
+              backgroundColor: selectedTab === 'all' ? 'var(--color-accent)' : 'var(--color-border)',
+              color: selectedTab === 'all' ? 'white' : 'var(--color-text-secondary)',
               borderRadius: '50%',
               width: '20px',
               height: '20px',
@@ -256,8 +256,8 @@ const AccountsList = ({
             padding: '8px 0',
             background: 'none',
             border: 'none',
-            borderBottom: selectedTab === 'favorites' ? '2px solid #0066cc' : '2px solid transparent',
-            color: selectedTab === 'favorites' ? '#0066cc' : '#666666',
+            borderBottom: selectedTab === 'favorites' ? `2px solid var(--color-accent)` : '2px solid transparent',
+            color: selectedTab === 'favorites' ? 'var(--color-accent)' : 'var(--color-text-secondary)',
             fontSize: '14px',
             cursor: 'pointer',
             marginBottom: '-1px'
@@ -271,8 +271,8 @@ const AccountsList = ({
             padding: '8px 0',
             background: 'none',
             border: 'none',
-            borderBottom: selectedTab === 'quick-access' ? '2px solid #0066cc' : '2px solid transparent',
-            color: selectedTab === 'quick-access' ? '#0066cc' : '#666666',
+            borderBottom: selectedTab === 'quick-access' ? `2px solid var(--color-accent)` : '2px solid transparent',
+            color: selectedTab === 'quick-access' ? 'var(--color-accent)' : 'var(--color-text-secondary)',
             fontSize: '14px',
             cursor: 'pointer',
             marginBottom: '-1px'
@@ -302,8 +302,8 @@ const AccountsList = ({
                 <div 
                   key={`${role.accountId}-${role.roleName}`}
                   style={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e0e0e0',
+                    backgroundColor: 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '4px',
                     padding: '12px 16px',
                     display: 'flex',
@@ -312,9 +312,9 @@ const AccountsList = ({
                   }}
                 >
                   <div>
-                    <div style={{ fontWeight: 500 }}>
+                    <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>
                       {role.accountName}
-                      <span style={{ fontSize: '0.9em', color: '#555' }}>({role.accountId})</span>
+                      <span style={{ fontSize: '0.9em', color: 'var(--color-text-secondary)' }}>({role.accountId})</span>
                       {' - '}
                       <span style={{ fontWeight: 'bold' }}>{role.roleName}</span>
                     </div>
@@ -325,14 +325,14 @@ const AccountsList = ({
                       title="Remove from Quick Access"
                       style={{
                         backgroundColor: 'transparent',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid var(--color-border)',
                         borderRadius: '4px',
                         padding: '6px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#0366d6'
+                        color: 'var(--color-accent)'
                       }}
                     >
                       <Bookmark 
@@ -345,7 +345,7 @@ const AccountsList = ({
                       title="Copy Credentials"
                       style={{
                         backgroundColor: 'transparent',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid var(--color-border)',
                         borderRadius: '4px',
                         padding: '6px',
                         cursor: 'pointer',
@@ -360,7 +360,7 @@ const AccountsList = ({
                       onClick={() => handleOpenAwsConsole(role.accountId, role.roleName)}
                       title="Open AWS Console"
                       style={{
-                        backgroundColor: '#0066cc',
+                        backgroundColor: 'var(--color-accent)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
@@ -412,7 +412,7 @@ const AccountsList = ({
                       title="Set as Default Profile"
                       style={{
                         backgroundColor: 'transparent',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid var(--color-border)',
                         borderRadius: '4px',
                         padding: '6px',
                         cursor: 'pointer',
@@ -431,7 +431,7 @@ const AccountsList = ({
             <div style={{
               textAlign: 'center',
               padding: '32px',
-              color: '#666666'
+              color: 'var(--color-text-secondary)'
             }}>
               <div>
                 <Bookmark size={48} style={{ opacity: 0.3, margin: '0 auto 20px' }} />
@@ -462,7 +462,7 @@ const AccountsList = ({
               <div style={{
                 textAlign: 'center',
                 padding: '32px',
-                color: '#666666'
+                color: 'var(--color-text-secondary)'
               }}>
                 {searchTerm ? (
                   <p>No accounts found matching "{searchTerm}"</p>
@@ -632,7 +632,7 @@ export AWS_SESSION_TOKEN=${credentials.sessionToken}`;
               <button
                 onClick={() => setShowCredentials(false)}
                 style={{
-                  backgroundColor: '#0066cc',
+                  backgroundColor: 'var(--color-accent)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',

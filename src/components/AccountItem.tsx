@@ -174,12 +174,12 @@ const AccountItem = ({
         onClick={() => setIsExpanded(!isExpanded)}
         style={{
           padding: '12px 16px',
-          backgroundColor: 'white',
+          backgroundColor: 'var(--color-bg-secondary)',
           display: 'flex',
           alignItems: 'flex-start',
           gap: '12px',
           cursor: 'pointer',
-          borderBottom: isExpanded ? 'none' : '1px solid #eee'
+          borderBottom: isExpanded ? 'none' : '1px solid var(--color-border)'
         }}
       >
         <button
@@ -189,7 +189,7 @@ const AccountItem = ({
           }}
           style={{
             background: 'none',
-            border: '1px solid #e0e0e0',
+            border: '1px solid var(--color-border)',
             borderRadius: '4px',
             padding: '4px',
             cursor: 'pointer',
@@ -204,7 +204,7 @@ const AccountItem = ({
             size={16}
             fill={isFavorite ? "currentColor" : "none"}
             style={{
-              color: isFavorite ? '#fbbf24' : '#666666'
+              color: isFavorite ? 'var(--color-warning)' : 'var(--color-text-secondary)'
             }}
           />
         </button>
@@ -212,22 +212,22 @@ const AccountItem = ({
           <div style={{
             fontSize: '16px',
             fontWeight: 500,
-            color: '#111827',
+            color: 'var(--color-text-primary)',
             marginBottom: '4px'
           }}>
             {account.accountName || account.accountId}
           </div>
           <div style={{
             fontSize: '14px',
-            color: '#666666'
+            color: 'var(--color-text-secondary)'
           }}>
             {account.accountId} • {account.emailAddress}
           </div>
         </div>
         {isDefaultProfile && (
           <div style={{
-            backgroundColor: '#e8f5e9',
-            color: '#2e7d32',
+            backgroundColor: 'rgba(var(--color-success-rgb), 0.1)',
+            color: 'var(--color-success)',
             padding: '4px 8px',
             borderRadius: '4px',
             fontSize: '12px',
@@ -241,7 +241,7 @@ const AccountItem = ({
           transform: `rotate(${isExpanded ? '180deg' : '0deg'})`,
           transition: 'transform 0.2s ease'
         }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth="2">
             <path d="M6 9l6 6 6-6"/>
           </svg>
         </div>
@@ -251,8 +251,8 @@ const AccountItem = ({
       {isExpanded && (
         <div style={{
           padding: '16px',
-          backgroundColor: '#f8f9fa',
-          border: '1px solid #e0e0e0',
+          backgroundColor: 'var(--color-bg-primary)',
+          border: '1px solid var(--color-border)',
           borderTop: 'none',
           borderBottomLeftRadius: '4px',
           borderBottomRightRadius: '4px'
@@ -260,7 +260,7 @@ const AccountItem = ({
           {isLoading ? (
             <div style={{ 
               textAlign: 'center',
-              color: '#666666',
+              color: 'var(--color-text-secondary)',
               padding: '8px'
             }}>
               Loading roles...
@@ -275,8 +275,8 @@ const AccountItem = ({
                 <div 
                   key={role.roleName}
                   style={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e0e0e0',
+                    backgroundColor: 'var(--color-bg-secondary)',
+                    border: '1px solid var(--color-border)',
                     borderRadius: '4px',
                     padding: '12px 16px',
                     display: 'flex',
@@ -284,7 +284,7 @@ const AccountItem = ({
                     alignItems: 'center'
                   }}
                 >
-                  <div style={{ fontWeight: 500 }}>{role.roleName}</div>
+                  <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{role.roleName}</div>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
                       onClick={(e) => {
@@ -294,14 +294,14 @@ const AccountItem = ({
                       title={isQuickAccess(account.accountId, role.roleName) ? "Remove from Quick Access" : "Add to Quick Access"}
                       style={{
                         backgroundColor: 'transparent',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid var(--color-border)',
                         borderRadius: '4px',
                         padding: '6px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: isQuickAccess(account.accountId, role.roleName) ? '#0366d6' : '#666666'
+                        color: isQuickAccess(account.accountId, role.roleName) ? 'var(--color-accent)' : 'var(--color-text-secondary)'
                       }}
                     >
                       <Bookmark 
@@ -317,13 +317,14 @@ const AccountItem = ({
                       title="Copy Credentials"
                       style={{
                         backgroundColor: 'transparent',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid var(--color-border)',
                         borderRadius: '4px',
                         padding: '6px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        color: 'var(--color-text-secondary)'
                       }}
                     >
                       <Copy size={16} />
@@ -335,7 +336,7 @@ const AccountItem = ({
                       }}
                       title="Open AWS Console"
                       style={{
-                        backgroundColor: '#0066cc',
+                        backgroundColor: 'var(--color-accent)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
@@ -396,13 +397,14 @@ const AccountItem = ({
                       title="Set as Default Profile"
                       style={{
                         backgroundColor: 'transparent',
-                        border: '1px solid #e0e0e0',
+                        border: '1px solid var(--color-border)',
                         borderRadius: '4px',
                         padding: '6px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        color: 'var(--color-text-secondary)'
                       }}
                     >
                       <Check size={16} />
@@ -414,7 +416,7 @@ const AccountItem = ({
           ) : activeTab === 'quick-access' ? (
             <div style={{ 
               textAlign: 'center',
-              color: '#666666',
+              color: 'var(--color-text-secondary)',
               padding: '8px'
             }}>
               No quick access roles for this account
@@ -422,7 +424,7 @@ const AccountItem = ({
           ) : (
             <div style={{ 
               textAlign: 'center',
-              color: '#666666',
+              color: 'var(--color-text-secondary)',
               padding: '8px'
             }}>
               No roles available
@@ -446,43 +448,45 @@ const AccountItem = ({
           zIndex: 1000
         }} onClick={() => setShowCredentials(false)}>
           <div style={{
-            backgroundColor: 'white',
+            backgroundColor: 'var(--color-bg-secondary)',
             borderRadius: '8px',
             padding: '24px',
             width: '90%',
             maxWidth: '600px',
             maxHeight: '90vh',
             overflow: 'auto',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 4px 6px var(--color-shadow)'
           }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ 
               fontSize: '18px', 
               marginTop: 0, 
-              marginBottom: '16px' 
+              marginBottom: '16px',
+              color: 'var(--color-text-primary)'
             }}>
               AWS Credentials for {account.accountName || account.accountId} - {selectedRole}
             </h3>
             
             <div style={{ marginBottom: '16px' }}>
               <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Access Key ID:</div>
+                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-primary)' }}>Access Key ID:</div>
                 <div style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '8px',
                   borderRadius: '4px',
-                  backgroundColor: '#f5f5f5'
+                  backgroundColor: 'var(--color-bg-primary)'
                 }}>
-                  <code style={{ wordBreak: 'break-all' }}>{credentials.accessKeyId}</code>
+                  <code style={{ wordBreak: 'break-all', color: 'var(--color-text-primary)' }}>{credentials.accessKeyId}</code>
                   <button 
                     onClick={() => copyToClipboard(credentials.accessKeyId)}
                     style={{
                       backgroundColor: 'transparent',
-                      border: '1px solid #e0e0e0',
+                      border: '1px solid var(--color-border)',
                       borderRadius: '4px',
                       padding: '4px',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      color: 'var(--color-text-secondary)'
                     }}
                   >
                     <Copy size={14} />
@@ -491,24 +495,25 @@ const AccountItem = ({
               </div>
               
               <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Secret Access Key:</div>
+                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-primary)' }}>Secret Access Key:</div>
                 <div style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '8px',
                   borderRadius: '4px',
-                  backgroundColor: '#f5f5f5'
+                  backgroundColor: 'var(--color-bg-primary)'
                 }}>
-                  <code style={{ wordBreak: 'break-all' }}>{credentials.secretAccessKey}</code>
+                  <code style={{ wordBreak: 'break-all', color: 'var(--color-text-primary)' }}>{credentials.secretAccessKey}</code>
                   <button 
                     onClick={() => copyToClipboard(credentials.secretAccessKey)}
                     style={{
                       backgroundColor: 'transparent',
-                      border: '1px solid #e0e0e0',
+                      border: '1px solid var(--color-border)',
                       borderRadius: '4px',
                       padding: '4px',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      color: 'var(--color-text-secondary)'
                     }}
                   >
                     <Copy size={14} />
@@ -517,19 +522,20 @@ const AccountItem = ({
               </div>
               
               <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Session Token:</div>
+                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-primary)' }}>Session Token:</div>
                 <div style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '8px',
                   borderRadius: '4px',
-                  backgroundColor: '#f5f5f5'
+                  backgroundColor: 'var(--color-bg-primary)'
                 }}>
                   <code style={{ 
                     wordBreak: 'break-all', 
                     maxHeight: '100px', 
-                    overflow: 'auto' 
+                    overflow: 'auto',
+                    color: 'var(--color-text-primary)'
                   }}>
                     {credentials.sessionToken}
                   </code>
@@ -537,10 +543,11 @@ const AccountItem = ({
                     onClick={() => copyToClipboard(credentials.sessionToken)}
                     style={{
                       backgroundColor: 'transparent',
-                      border: '1px solid #e0e0e0',
+                      border: '1px solid var(--color-border)',
                       borderRadius: '4px',
                       padding: '4px',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      color: 'var(--color-text-secondary)'
                     }}
                   >
                     <Copy size={14} />
@@ -549,11 +556,12 @@ const AccountItem = ({
               </div>
               
               <div>
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Expiration:</div>
+                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-primary)' }}>Expiration:</div>
                 <div style={{ 
                   padding: '8px',
                   borderRadius: '4px',
-                  backgroundColor: '#f5f5f5'
+                  backgroundColor: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)'
                 }}>
                   {credentials.expiration}
                 </div>
@@ -573,8 +581,9 @@ export AWS_SESSION_TOKEN=${credentials.sessionToken}`;
                   copyToClipboard(envFormat);
                 }}
                 style={{
-                  backgroundColor: '#f0f0f0',
-                  border: '1px solid #ccc',
+                  backgroundColor: 'var(--color-bg-primary)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border)',
                   borderRadius: '4px',
                   padding: '8px 16px',
                   cursor: 'pointer'
@@ -586,7 +595,7 @@ export AWS_SESSION_TOKEN=${credentials.sessionToken}`;
               <button
                 onClick={() => setShowCredentials(false)}
                 style={{
-                  backgroundColor: '#0066cc',
+                  backgroundColor: 'var(--color-accent)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
@@ -616,10 +625,11 @@ export AWS_SESSION_TOKEN=${credentials.sessionToken}`;
           zIndex: 1000
         }}>
           <div style={{
-            backgroundColor: 'white',
+            backgroundColor: 'var(--color-bg-secondary)',
+            color: 'var(--color-text-primary)',
             borderRadius: '8px',
             padding: '24px',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 4px 6px var(--color-shadow)'
           }}>
             Loading credentials...
           </div>
