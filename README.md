@@ -52,6 +52,11 @@ A modern desktop application built with Electron and React for managing AWS SSO 
 
 ### Windows
 
+#### Using the installer:
+1. Download the latest release from the [Releases](https://github.com/cfircoo/aws-sso-manager/releases) page
+2. Run the downloaded `.exe` file
+3. Follow the installation prompts
+4. Open the app from your Start menu
 
 #### Using the install script:
 1. Clone the repository:
