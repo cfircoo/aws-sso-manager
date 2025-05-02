@@ -21,6 +21,17 @@ A modern desktop application built with Electron and React for managing AWS SSO 
 - 📊 Visual account counter to track available AWS accounts
 - ⏳ Loading indicators for better user experience
 
+## Screenshots
+
+### All Accounts View
+![All Accounts View](@all_accounts.png)
+
+### Favorites
+![Favorites View](@favorite.png)
+
+### Quick Access
+![Quick Access View](@quick_access.png)
+
 ## Installation
 
 ### macOS
