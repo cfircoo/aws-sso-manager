@@ -1,8 +1,8 @@
 @echo off
-:: AWS SSO Manager Windows Installer
+:: AWS SSO Manager Windows Installer1
 :: This script builds and installs the AWS SSO Manager application on Windows
 
-echo AWS SSO Manager Windows Installer
+echo AWS SSO Manager Windows Installer1
 echo ================================
 
 :: Check for required tools
@@ -45,12 +45,15 @@ cd /d "%~dp0"
 :: Build steps
 call :progress "Installing dependencies..."
 call npm install
+echo Finished npm install
 
 call :progress "Building the application..."
 call npm run build
+echo Finished npm run build
 
 call :progress "Creating the Windows application package..."
 call npm run build-win
+echo Finished npm run build-win
 
 :: Check if the app was built successfully
 if not exist "release\win-unpacked\%APP_NAME%.exe" (

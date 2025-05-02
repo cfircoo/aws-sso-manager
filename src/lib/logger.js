@@ -1,19 +1,34 @@
 const fs = require('fs');
 const path = require('path');
-const { app } = require('electron');
+const os = require('os');
 
-// Get user's Library path and create logs directory
-const userLibraryPath = path.join(process.env.HOME || '', 'Library/aws-sso-manager');
-console.log('User Library Path:', userLibraryPath);
+// Get Electron app if available
+let electronApp;
+try {
+  const electron = require('electron');
+  electronApp = electron.app;
+  // When running in renderer process, app might be in remote
+  if (!electronApp && electron.remote) {
+    electronApp = electron.remote.app;
+  }
+} catch (e) {
+  console.log('Running outside of Electron context');
+}
 
-const logsDir = path.join(userLibraryPath, 'logs');
+const paths = require('./paths');
+
+// Get app data path and create logs directory
+const logsDir = paths.getLogsDirectory({ app: electronApp });
 console.log('Logs Directory Path:', logsDir);
 
 // Create logs directory if it doesn't exist
 try {
-  if (!fs.existsSync(userLibraryPath)) {
+  // Get parent directory
+  const appDataPath = paths.getPlatformAppPath({ app: electronApp });
+  
+  if (!fs.existsSync(appDataPath)) {
     console.log('Creating application directory...');
-    fs.mkdirSync(userLibraryPath, { recursive: true });
+    fs.mkdirSync(appDataPath, { recursive: true });
     console.log('Application directory created successfully');
   }
   
@@ -27,7 +42,7 @@ try {
 } catch (error) {
   console.error('Error creating logs directory:', error);
   // Try to create in user's home directory as fallback
-  const fallbackLogsDir = path.join(process.env.HOME || '', '.aws-sso-manager', 'logs');
+  const fallbackLogsDir = paths.getFallbackLogsDirectory();
   console.log('Attempting to create logs in fallback location:', fallbackLogsDir);
   try {
     if (!fs.existsSync(fallbackLogsDir)) {
