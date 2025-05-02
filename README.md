@@ -2,10 +2,6 @@
 
 A modern desktop application built with Electron and React for managing AWS SSO sessions and role switching across multiple AWS accounts.
 
-![AWS SSO Manager Screenshot](public/screenshot.png)
-
-![AWS SSO Manager Interface](@Screenshot.png)
-
 ## Features
 
 - 🔐 Easy AWS SSO login and session management
