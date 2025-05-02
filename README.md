@@ -20,13 +20,13 @@ A modern desktop application built with Electron and React for managing AWS SSO 
 ## Screenshots
 
 ### All Accounts View
-![All Accounts View](@all_accounts.png)
+![All Accounts View](@public/all_accounts.png)
 
 ### Favorites
-![Favorites View](@favorite.png)
+![Favorites View](@public/favorite.png)
 
 ### Quick Access
-![Quick Access View](@quick_access.png)
+![Quick Access View](@public/quick_access.png)
 
 ## Installation
 
