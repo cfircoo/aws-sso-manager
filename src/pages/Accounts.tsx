@@ -9,6 +9,9 @@ import CodeArtifactStatus from '../components/CodeArtifactStatus';
 import EcrStatus from '../components/EcrStatus';
 import { SettingsForm } from '../components/SettingsForm';
 import { useElectron } from '../contexts/ElectronContext';
+import { RefreshCw, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import ThemeToggle from '../components/ThemeToggle';
 
 const Accounts = () => {
   const navigate = useNavigate();
@@ -32,6 +35,7 @@ const Accounts = () => {
   } = useSsoContext();
   
   const [isRenewingSession, setIsRenewingSession] = useState(false);
+  const [isRefreshingAccounts, setIsRefreshingAccounts] = useState(false);
   
   // Load app version from package.json via Electron
   useEffect(() => {
@@ -326,6 +330,23 @@ const Accounts = () => {
     setShowSettings(!showSettings);
   };
 
+  // Handle account list refresh
+  const handleRefreshAccounts = async () => {
+    if (isRefreshingAccounts || !queries?.accounts?.refetch) return;
+    
+    try {
+      setIsRefreshingAccounts(true);
+      await queries.accounts.refetch();
+      console.log('Accounts: Successfully refreshed account list');
+      toast.success('Account list refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing accounts:', error);
+      toast.error('Failed to refresh accounts. Please try again.');
+    } finally {
+      setIsRefreshingAccounts(false);
+    }
+  };
+
   return (
     <div style={{ 
       display: 'flex', 
@@ -335,7 +356,8 @@ const Accounts = () => {
     }}>
       <div style={{ 
         padding: '8px 16px',
-        borderBottom: '1px solid #e5e7eb',
+        borderBottom: '1px solid var(--color-border)',
+        backgroundColor: 'var(--color-bg-secondary)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
@@ -358,14 +380,16 @@ const Accounts = () => {
             codeArtifactStatus={initialStatusCheckDone ? codeArtifactStatus : localCodeArtifactStatus}
             onCodeArtifactLogin={handleCodeArtifactLogin}
           />
+          <ThemeToggle />
           <button
             onClick={toggleSettings}
             style={{
               padding: '6px 12px',
-              backgroundColor: '#f3f4f6',
-              border: '1px solid #d1d5db',
+              backgroundColor: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
               borderRadius: '4px',
               fontSize: '0.875rem',
+              color: 'var(--color-text-primary)',
               cursor: 'pointer'
             }}
           >
@@ -388,9 +412,9 @@ const Accounts = () => {
           zIndex: 1000
         }}>
           <div style={{
-            backgroundColor: 'white',
+            backgroundColor: 'var(--color-bg-secondary)',
             borderRadius: '8px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+            boxShadow: '0 4px 6px var(--color-shadow)',
             width: '90%',
             maxWidth: '600px',
             maxHeight: '80vh',
@@ -406,8 +430,45 @@ const Accounts = () => {
         </div>
       )}
       
-      <main style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
-        <div style={{ marginBottom: '20px' }}>
+      <main style={{ 
+        flex: 1, 
+        overflow: 'auto', 
+        padding: '20px',
+        position: 'relative'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px',
+          marginBottom: '20px' 
+        }}>
+          <button
+            onClick={handleRefreshAccounts}
+            disabled={isRefreshingAccounts}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              background: 'none',
+              border: '1px solid var(--color-border)',
+              borderRadius: '4px',
+              cursor: isRefreshingAccounts ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              opacity: isRefreshingAccounts ? 0.7 : 1,
+              whiteSpace: 'nowrap',
+              color: 'var(--color-text-primary)'
+            }}
+            title="Refresh account list"
+          >
+            {isRefreshingAccounts ? (
+              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }} />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+            <span>{isRefreshingAccounts ? 'Refreshing...' : 'Refresh Accounts'}</span>
+          </button>
+          
           <input
             type="text"
             placeholder="Search accounts..."
@@ -416,8 +477,10 @@ const Accounts = () => {
             style={{
               width: '100%',
               padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
+              border: '1px solid var(--color-border)',
+              borderRadius: '4px',
+              backgroundColor: 'var(--color-bg-secondary)',
+              color: 'var(--color-text-primary)'
             }}
           />
         </div>
@@ -430,7 +493,30 @@ const Accounts = () => {
           onProfileChanged={() => console.log('Profile changed')}
           searchTerm={searchQuery}
           accessToken={accessToken}
+          totalAccounts={queries?.accounts?.data?.length || 0}
         />
+        
+        {/* Add loading indicator while accounts are being loaded */}
+        {queries?.accounts?.isLoading && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px',
+            backgroundColor: 'var(--color-bg-secondary)',
+            padding: '24px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px var(--color-shadow)',
+            zIndex: 5
+          }}>
+            <Loader2 size={36} style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }} />
+            <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>Loading AWS Accounts...</div>
+          </div>
+        )}
       </main>
       
       {/* Terminal component is kept for backward compatibility but is no longer used */}
@@ -455,10 +541,11 @@ const Accounts = () => {
       
       <footer style={{
         padding: '8px 16px',
-        borderTop: '1px solid #e5e7eb',
+        borderTop: '1px solid var(--color-border)',
+        backgroundColor: 'var(--color-bg-secondary)',
         textAlign: 'center',
         fontSize: '0.75rem',
-        color: '#6b7280' 
+        color: 'var(--color-text-secondary)'
       }}>
         Author: Carmeli Cfir , contact: cfir@carmeli.me | All copyrights reserved to Cfir Carmeli
       </footer>

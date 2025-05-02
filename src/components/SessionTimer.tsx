@@ -22,7 +22,7 @@ export const SessionTimer = ({
       }}>
         <span style={{ 
           fontSize: '0.875rem',
-          color: '#ef4444', // red
+          color: 'var(--color-error)', 
           fontWeight: 'bold'
         }}>
           Session: Expired
@@ -36,9 +36,9 @@ export const SessionTimer = ({
               justifyContent: 'center',
               padding: '2px 6px',
               fontSize: '0.75rem',
-              backgroundColor: '#fee2e2',
-              color: '#b91c1c',
-              border: '1px solid #fca5a5',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)', // Translucent red
+              color: 'var(--color-error)',
+              border: '1px solid var(--color-error)',
               borderRadius: '4px',
               cursor: 'pointer',
               transition: 'all 0.2s',
@@ -75,11 +75,11 @@ export const SessionTimer = ({
   };
   
   // Color based on status
-  let textColor = '#4b5563'; // default gray
+  let statusColor = 'var(--color-text-secondary)'; // default
   if (sessionTimeStatus === 'warning') {
-    textColor = '#f59e0b'; // amber
+    statusColor = 'var(--color-warning)'; 
   } else if (sessionTimeStatus === 'critical') {
-    textColor = '#ef4444'; // red
+    statusColor = 'var(--color-error)'; 
   }
   
   // Get formatted time and check if it's "Expired"
@@ -95,7 +95,7 @@ export const SessionTimer = ({
     }}>
       <span style={{ 
         fontSize: '0.875rem',
-        color: isExpired ? '#ef4444' : textColor,
+        color: isExpired ? 'var(--color-error)' : statusColor,
         fontWeight: isExpired || sessionTimeStatus !== 'normal' ? 'bold' : 'normal'
       }}>
         Session: {formattedTime}
@@ -109,9 +109,23 @@ export const SessionTimer = ({
             justifyContent: 'center',
             padding: '2px 6px',
             fontSize: '0.75rem',
-            backgroundColor: isExpired || sessionTimeStatus === 'critical' ? '#fee2e2' : sessionTimeStatus === 'warning' ? '#fef3c7' : '#f3f4f6',
-            color: isExpired || sessionTimeStatus === 'critical' ? '#b91c1c' : sessionTimeStatus === 'warning' ? '#92400e' : '#374151',
-            border: `1px solid ${isExpired || sessionTimeStatus === 'critical' ? '#fca5a5' : sessionTimeStatus === 'warning' ? '#fcd34d' : '#d1d5db'}`,
+            backgroundColor: isExpired || sessionTimeStatus === 'critical' 
+              ? 'rgba(239, 68, 68, 0.1)' // Translucent red
+              : sessionTimeStatus === 'warning' 
+                ? 'rgba(251, 191, 36, 0.1)' // Translucent amber
+                : 'var(--color-bg-secondary)',
+            color: isExpired || sessionTimeStatus === 'critical' 
+              ? 'var(--color-error)' 
+              : sessionTimeStatus === 'warning' 
+                ? 'var(--color-warning)' 
+                : 'var(--color-text-primary)',
+            border: `1px solid ${
+              isExpired || sessionTimeStatus === 'critical' 
+                ? 'var(--color-error)' 
+                : sessionTimeStatus === 'warning' 
+                  ? 'var(--color-warning)' 
+                  : 'var(--color-border)'
+            }`,
             borderRadius: '4px',
             cursor: 'pointer',
             transition: 'all 0.2s',

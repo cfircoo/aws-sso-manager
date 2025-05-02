@@ -7,6 +7,7 @@ import SessionTimer from './SessionTimer';
 import EcrStatus from './EcrStatus';
 import CodeArtifactStatus from './CodeArtifactStatus';
 import SettingsButton from './SettingsButton';
+import ThemeToggle from './ThemeToggle';
 import { CodeArtifactLoginResponse } from '../types/aws';
 
 interface HeaderProps {
@@ -202,7 +203,8 @@ const Header = ({
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: '16px 24px',
-      borderBottom: '1px solid #e5e7eb',
+      borderBottom: '1px solid var(--color-border)',
+      backgroundColor: 'var(--color-bg-secondary)',
       marginBottom: '16px'
     }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -239,6 +241,8 @@ const Header = ({
           </div>
         )}
         
+        <ThemeToggle />
+        <div style={{ width: '8px' }}></div>
         <SettingsButton onLogout={onLogout} isAuthenticated={isAuthenticated} />
       </div>
     </header>
