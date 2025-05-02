@@ -551,7 +551,8 @@ aws_who_am_i() {
   echo "AWS Region:  ${region}"
   if [ -n "${expiration}" ]; then
     echo ""
-    echo "Temporary credentials expire at: $(date -r $(( ${expiration} / 1000 )))"
+    # Use a platform-aware date command that works on both macOS and Linux
+    echo "Temporary credentials expire at: $(date -r $(( ${expiration} / 1000 )) 2>/dev/null || date -d @$(( ${expiration} / 1000 )) 2>/dev/null || echo 'Unknown expiration time')"
   fi
 }
 
@@ -591,6 +592,233 @@ Command: ${command}
     console.error('[Main] Error opening macOS terminal:', error);
     fs.appendFileSync(debugLogPath, `\n--- ERROR IN MAIN PROCESS (MacOS) --- \n ${error.message} \n ${error.stack} \n`);
     return { success: false, error: error.message || 'Failed to open macOS terminal' };
+  }
+}
+
+// Open system terminal handler
+ipcMain.handle('aws-sso:open-terminal', async (_, options) => {
+  console.log('[Main] Opening system terminal');
+  const debugLogPath = path.join(os.tmpdir(), 'aws_term_debug.log');
+  const shellDebugLogPath = shellEscape(debugLogPath); // Escape for shell usage
+
+  // Clear previous log file
+  try { fs.unlinkSync(debugLogPath); } catch (e) { /* ignore */ }
+  fs.appendFileSync(debugLogPath, `--- Log Start: ${new Date().toISOString()} ---\n`);
+
+  try {
+    const { env = {} } = options;
+    const homedir = os.homedir();
+    const platform = process.platform;
+
+    // Special handling for macOS for better environment persistence
+    if (platform === 'darwin') {
+      console.log('[Main] Opening macOS Terminal with zsh');
+      return await openMacOSTerminal(env, debugLogPath);
+    }
+
+    // Special handling for Windows
+    if (platform === 'win32') {
+      console.log('[Main] Opening Windows CMD terminal');
+      return await openWindowsTerminal(env, debugLogPath);
+    }
+
+    // For Linux, continue with the original approach
+    console.log('[Main] Opening Linux terminal');
+    let command;
+    const tempScriptPath = path.join(os.tmpdir(), `aws-sso-terminal-${Date.now()}.sh`);
+    const shellTempScriptPath = shellEscape(tempScriptPath); // Escape for shell usage
+
+    // --- Build Script Content ---
+    let scriptContent = '#!/bin/zsh\n\n';
+
+    scriptContent += `# Debug log located at: ${debugLogPath}\n`;
+    scriptContent += `echo "--- Starting AWS SSO Terminal Script ---\" >> "${shellDebugLogPath}" 2>&1\n`;
+    scriptContent += `echo "Script path: ${tempScriptPath}\" >> "${shellDebugLogPath}" 2>&1\n`;
+    scriptContent += `echo "Platform: ${platform}\" >> "${shellDebugLogPath}" 2>&1\n`;
+    scriptContent += `echo "Timestamp: $(date)\" >> "${shellDebugLogPath}" 2>&1\n`;
+
+    scriptContent += `echo "\n--- Sourcing .zshrc ---\" >> "${shellDebugLogPath}" 2>&1\n`;
+    scriptContent += `source ~/.zshrc >> "${shellDebugLogPath}" 2>&1 || echo ".zshrc source failed." >> "${shellDebugLogPath}" 2>&1\n`;
+
+    scriptContent += `echo "\n--- Exporting AWS Environment Variables ---\" >> "${shellDebugLogPath}" 2>&1\n`;
+    Object.entries(env).forEach(([key, value]) => {
+      const escapedValue = shellEscape(value);
+      scriptContent += `echo "Exporting ${key}..." >> "${shellDebugLogPath}" 2>&1\n`;
+      // Use double quotes in the shell export command
+      scriptContent += `export ${key}="${escapedValue}"\n`;
+    });
+
+    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_SESSION_TOKEN) {
+      const accountId = shellEscape(env.AWS_ACCOUNT_ID || 'N/A');
+      const roleName = shellEscape(env.AWS_ROLE_NAME || 'N/A');
+      const region = shellEscape(env.AWS_REGION || 'us-east-1');
+      const expiration = env.AWS_EXPIRATION ? parseInt(env.AWS_EXPIRATION, 10) : 0;
+      const expirationSeconds = expiration ? Math.floor(expiration / 1000) : 0;
+
+      scriptContent += `echo "\n--- Setting up AWS Context ---\" >> "${shellDebugLogPath}" 2>&1\n`;
+      scriptContent += `export AWS_DEFAULT_REGION="${region}"\n`;
+      scriptContent += `export AWS_PS1_ENABLED=true\n`;
+      scriptContent += `export AWS_PROMPT_ROLE="${roleName}"\n`;
+      scriptContent += `export AWS_PROMPT_ACCOUNT="${accountId}"\n`;
+
+      // Define the aws_who_am_i function using standard string concatenation
+      // to avoid template literal interpretation issues.
+      let awsWhoAmIFunction = '\naws_who_am_i() {\n';
+      awsWhoAmIFunction += '  echo "--- AWS Identity Info (from aws_who_am_i) ---";\n';
+      // Escape $ for shell, accountId/roleName are already shell-escaped JS variables
+      awsWhoAmIFunction += '  echo "AWS Account: \\${AWS_PROMPT_ACCOUNT:-Not Set} (' + accountId + ')";\n'; 
+      awsWhoAmIFunction += '  echo "AWS Role:    \\${AWS_PROMPT_ROLE:-Not Set} (' + roleName + ')";\n';
+      awsWhoAmIFunction += '  echo "AWS Region:  \\${AWS_REGION:-Not Set}";\n';
+      awsWhoAmIFunction += '  echo "";\n';
+      awsWhoAmIFunction += '  echo -n "Temporary credentials expire at: ";\n';
+      // Cross-platform date command that works on both Linux and macOS
+      const dateCommand = `date -d @${expirationSeconds} 2>/dev/null || date -r ${expirationSeconds} 2>/dev/null || echo \'Unknown expiration time\'`;
+       // Escape the *result* of the date command execution for the echo
+       awsWhoAmIFunction += '  echo "$(' + dateCommand + ')";\n'; 
+      awsWhoAmIFunction += '  echo "";\n';
+      awsWhoAmIFunction += '  echo "Current AWS Environment Variables (from env):";\n';
+      awsWhoAmIFunction += '  env | grep AWS || echo "No AWS variables found in env";\n';
+      awsWhoAmIFunction += '  echo "---------------------------------------------";\n';
+      awsWhoAmIFunction += '}\n'; // Closing brace
+
+      scriptContent += `echo "\\n--- Defining aws_who_am_i ---" >> "${shellDebugLogPath}" 2>&1\n`;
+      // Add the function definition to the script content
+      scriptContent += awsWhoAmIFunction;
+
+      scriptContent += `
+echo "\n--- Running aws_who_am_i on startup ---\" >> "${shellDebugLogPath}" 2>&1
+aws_who_am_i >> "${shellDebugLogPath}" 2>&1 # Also log the function output
+echo "" >> "${shellDebugLogPath}" 2>&1
+echo "Type 'aws_who_am_i' to see AWS identity information again" # This goes to terminal stdout
+echo ""
+`;
+    } else {
+       scriptContent += `echo "\n--- AWS Credentials Missing - Skipping AWS Context Setup ---\" >> "${shellDebugLogPath}" 2>&1\n`;
+    }
+
+    scriptContent += `echo "\n--- Executing final zsh (leaving debug log at ${debugLogPath}) ---\" >> "${shellDebugLogPath}" 2>&1\n`;
+    scriptContent += `exec /bin/zsh\n`; // Final command replaces the script's shell
+
+    // --- Write and Execute Script ---
+    console.log('[Main] Generated Script Content (first 500 chars):\n', scriptContent.substring(0, 500) + '...');
+    fs.writeFileSync(tempScriptPath, scriptContent, { mode: 0o755 });
+    console.log('[Main] Created temporary shell script:', tempScriptPath);
+
+      command = `x-terminal-emulator -e "sh \\"${shellTempScriptPath}\\""`;
+
+    console.log('[Main] Running command:', command);
+    await execAsync(command);
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Error opening terminal:', error);
+    try {
+      fs.appendFileSync(debugLogPath, `\n--- ERROR IN MAIN PROCESS --- \n ${error.message} \n ${error.stack} \n`);
+    } catch (logError) { console.error("Failed to write error to debug log:", logError); }
+    return { success: false, error: error.message || 'Failed to open terminal' };
+  }
+});
+
+// Function to handle Windows terminal opening
+async function openWindowsTerminal(env, debugLogPath) {
+  console.log('[Main] Opening Windows CMD terminal');
+  
+  try {
+    // Create batch file for CMD
+    const batchFilePath = path.join(os.tmpdir(), `aws-sso-terminal-${Date.now()}.bat`);
+    console.log('[Main] Creating Windows batch file at:', batchFilePath);
+
+    // Create the batch file content
+    let batchContent = '@echo off\r\n';
+    batchContent += 'cls\r\n';
+    batchContent += 'echo AWS SSO Manager - Terminal Session\r\n';
+    batchContent += 'echo --------------------------------------\r\n';
+    batchContent += `echo Timestamp: %DATE% %TIME%\r\n`;
+    batchContent += 'echo.\r\n';
+    
+    // Set environment variables
+    batchContent += 'echo Setting up AWS environment variables...\r\n';
+    Object.entries(env).forEach(([key, value]) => {
+      // Special handling for path-like variables to avoid escaping issues
+      if (key === 'PATH' || key === 'Path') {
+        batchContent += `set ${key}=${value}\r\n`;
+      } else {
+        // Properly handle quotes for Windows batch files
+        // Double up quotes inside values to escape them
+        const escapedValue = value.replace(/"/g, '""');
+        batchContent += `set ${key}=${escapedValue}\r\n`;
+      }
+    });
+    
+    // Add region variable if exists
+      const region = env.AWS_REGION || 'us-east-1';
+    batchContent += `set AWS_DEFAULT_REGION=${region}\r\n`;
+    
+    // Add AWS identity info function
+    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
+      const accountId = env.AWS_ACCOUNT_ID || 'N/A';
+      const roleName = env.AWS_ROLE_NAME || 'N/A';
+      const expiration = env.AWS_EXPIRATION ? new Date(parseInt(env.AWS_EXPIRATION, 10)).toLocaleString() : 'N/A';
+      
+      batchContent += `\r\n`;
+      batchContent += '@echo off\r\n';
+      batchContent += 'echo.\r\n';
+      batchContent += 'echo --- AWS Identity Info ---\r\n';
+      batchContent += `echo AWS Account: ${accountId}\r\n`;
+      batchContent += `echo AWS Role:    ${roleName}\r\n`;
+      batchContent += `echo AWS Region:  %AWS_DEFAULT_REGION%\r\n`;
+      batchContent += 'echo.\r\n';
+      batchContent += `echo Credentials expire at: ${expiration}\r\n`;
+      batchContent += 'echo.\r\n';
+      
+      // Create a batch function for displaying AWS info
+      batchContent += `\r\n`;
+      batchContent += ':aws_info\r\n';
+      batchContent += '@echo off\r\n';
+      batchContent += 'echo --- AWS Identity Info ---\r\n';
+      batchContent += `echo AWS Account: ${accountId}\r\n`;
+      batchContent += `echo AWS Role:    ${roleName}\r\n`;
+      batchContent += `echo AWS Region:  %AWS_DEFAULT_REGION%\r\n`;
+      batchContent += 'echo.\r\n';
+      batchContent += `echo Credentials expire at: ${expiration}\r\n`;
+      batchContent += 'echo.\r\n';
+      batchContent += 'echo Current AWS Environment Variables:\r\n';
+      batchContent += 'set AWS_\r\n';
+      batchContent += 'goto :eof\r\n';
+      
+      // Add instruction for the user
+      batchContent += '\r\n';
+      batchContent += 'echo Type "call :aws_info" to see AWS identity information again\r\n';
+      batchContent += 'echo.\r\n';
+    }
+    
+    // Set a custom prompt showing AWS role
+    batchContent += '\r\n';
+    batchContent += 'echo Setting custom AWS prompt...\r\n';
+    if (env.AWS_ROLE_NAME) {
+      batchContent += `prompt $E[32m[AWS: %AWS_ROLE_NAME%]$E[0m $P$G\r\n`;
+    } else {
+      batchContent += `prompt $E[32m[AWS]$E[0m $P$G\r\n`;
+    }
+    
+    // Write log file path for debugging
+    batchContent += `echo Debug log location: ${debugLogPath}\r\n`;
+    batchContent += 'echo.\r\n';
+    
+    // Write the batch file
+    fs.writeFileSync(batchFilePath, batchContent);
+    console.log('[Main] Batch file created successfully');
+    
+    // Open CMD with the batch file
+    const command = `start cmd.exe /k "${batchFilePath}"`;
+    console.log('[Main] Running command:', command);
+    await execAsync(command);
+    
+    fs.appendFileSync(debugLogPath, `\n--- Windows CMD Terminal Launched ---\nBatch file: ${batchFilePath}\nCommand: ${command}\n`);
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Error opening Windows terminal:', error);
+    fs.appendFileSync(debugLogPath, `\n--- ERROR IN MAIN PROCESS (Windows) ---\n${error.message}\n${error.stack}\n`);
+    return { success: false, error: error.message || 'Failed to open Windows terminal' };
   }
 }
 
@@ -692,668 +920,537 @@ if (isElectronApp && ipcMain) {
     }
   });
 
-  // Open system terminal handler
-  ipcMain.handle('aws-sso:open-terminal', async (_, options) => {
-    console.log('[Main] Opening system terminal with zsh');
-    const debugLogPath = path.join(os.tmpdir(), 'aws_term_debug.log');
-    const shellDebugLogPath = shellEscape(debugLogPath); // Escape for shell usage
-
-    // Clear previous log file
-    try { fs.unlinkSync(debugLogPath); } catch (e) { /* ignore */ }
-    fs.appendFileSync(debugLogPath, `--- Log Start: ${new Date().toISOString()} ---\n`);
-
-    try {
-      const { env = {} } = options;
-      const homedir = os.homedir();
-      const platform = process.platform;
-
-      // Special handling for macOS for better environment persistence
-      if (platform === 'darwin') {
-        return await openMacOSTerminal(env, debugLogPath);
-      }
-
-      // For non-macOS platforms, continue with the original approach
-      let command;
-      const tempScriptPath = path.join(os.tmpdir(), `aws-sso-terminal-${Date.now()}.sh`);
-      const shellTempScriptPath = shellEscape(tempScriptPath); // Escape for shell usage
-
-      // --- Build Script Content ---
-      let scriptContent = '#!/bin/zsh\n\n';
-
-      scriptContent += `# Debug log located at: ${debugLogPath}\n`;
-      scriptContent += `echo "--- Starting AWS SSO Terminal Script ---\" >> "${shellDebugLogPath}" 2>&1\n`;
-      scriptContent += `echo "Script path: ${tempScriptPath}\" >> "${shellDebugLogPath}" 2>&1\n`;
-      scriptContent += `echo "Platform: ${platform}\" >> "${shellDebugLogPath}" 2>&1\n`;
-      scriptContent += `echo "Timestamp: $(date)\" >> "${shellDebugLogPath}" 2>&1\n`;
-
-      scriptContent += `echo "\n--- Sourcing .zshrc ---\" >> "${shellDebugLogPath}" 2>&1\n`;
-      scriptContent += `source ~/.zshrc >> "${shellDebugLogPath}" 2>&1 || echo ".zshrc source failed." >> "${shellDebugLogPath}" 2>&1\n`;
-
-      scriptContent += `echo "\n--- Exporting AWS Environment Variables ---\" >> "${shellDebugLogPath}" 2>&1\n`;
-      Object.entries(env).forEach(([key, value]) => {
-        const escapedValue = shellEscape(value);
-        scriptContent += `echo "Exporting ${key}..." >> "${shellDebugLogPath}" 2>&1\n`;
-        // Use double quotes in the shell export command
-        scriptContent += `export ${key}="${escapedValue}"\n`;
-      });
-
-      if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.AWS_SESSION_TOKEN) {
-        const accountId = shellEscape(env.AWS_ACCOUNT_ID || 'N/A');
-        const roleName = shellEscape(env.AWS_ROLE_NAME || 'N/A');
-        const region = shellEscape(env.AWS_REGION || 'us-east-1');
-        const expiration = env.AWS_EXPIRATION ? parseInt(env.AWS_EXPIRATION, 10) : 0;
-        const expirationSeconds = expiration ? Math.floor(expiration / 1000) : 0;
-
-        scriptContent += `echo "\n--- Setting up AWS Context ---\" >> "${shellDebugLogPath}" 2>&1\n`;
-        scriptContent += `export AWS_DEFAULT_REGION="${region}"\n`;
-        scriptContent += `export AWS_PS1_ENABLED=true\n`;
-        scriptContent += `export AWS_PROMPT_ROLE="${roleName}"\n`;
-        scriptContent += `export AWS_PROMPT_ACCOUNT="${accountId}"\n`;
-
-        // Define the aws_who_am_i function using standard string concatenation
-        // to avoid template literal interpretation issues.
-        let awsWhoAmIFunction = '\naws_who_am_i() {\n';
-        awsWhoAmIFunction += '  echo "--- AWS Identity Info (from aws_who_am_i) ---";\n';
-        // Escape $ for shell, accountId/roleName are already shell-escaped JS variables
-        awsWhoAmIFunction += '  echo "AWS Account: \\${AWS_PROMPT_ACCOUNT:-Not Set} (' + accountId + ')";\n'; 
-        awsWhoAmIFunction += '  echo "AWS Role:    \\${AWS_PROMPT_ROLE:-Not Set} (' + roleName + ')";\n';
-        awsWhoAmIFunction += '  echo "AWS Region:  \\${AWS_REGION:-Not Set}";\n';
-        awsWhoAmIFunction += '  echo "";\n';
-        awsWhoAmIFunction += '  echo -n "Temporary credentials expire at: ";\n';
-         // The date command is complex, pre-construct and embed carefully
-         let dateCommand;
-         if (platform === 'darwin') {
-             dateCommand = `date -r ${expirationSeconds} 2>/dev/null || echo \'Invalid expiration timestamp\'`;
-         } else { // Linux/WSL
-             dateCommand = `date -d @${expirationSeconds} 2>/dev/null || echo \'Invalid expiration timestamp\'`;
-         }
-         // Escape the *result* of the date command execution for the echo
-         awsWhoAmIFunction += '  echo "$(' + dateCommand + ')";\n'; 
-        awsWhoAmIFunction += '  echo "";\n';
-        awsWhoAmIFunction += '  echo "Current AWS Environment Variables (from env):";\n';
-        awsWhoAmIFunction += '  env | grep AWS || echo "No AWS variables found in env";\n';
-        awsWhoAmIFunction += '  echo "---------------------------------------------";\n';
-        awsWhoAmIFunction += '}\n'; // Closing brace
-
-        scriptContent += `echo "\\n--- Defining aws_who_am_i ---" >> "${shellDebugLogPath}" 2>&1\n`;
-        // Add the function definition to the script content
-        scriptContent += awsWhoAmIFunction;
-
-        scriptContent += `
-echo "\n--- Running aws_who_am_i on startup ---\" >> "${shellDebugLogPath}" 2>&1
-aws_who_am_i >> "${shellDebugLogPath}" 2>&1 # Also log the function output
-echo "" >> "${shellDebugLogPath}" 2>&1
-echo "Type 'aws_who_am_i' to see AWS identity information again" # This goes to terminal stdout
-echo ""
-`;
-      } else {
-         scriptContent += `echo "\n--- AWS Credentials Missing - Skipping AWS Context Setup ---\" >> "${shellDebugLogPath}" 2>&1\n`;
-      }
-
-      scriptContent += `echo "\n--- Executing final zsh (leaving debug log at ${debugLogPath}) ---\" >> "${shellDebugLogPath}" 2>&1\n`;
-      scriptContent += `exec /bin/zsh\n`; // Final command replaces the script's shell
-
-      // --- Write and Execute Script ---
-      console.log('[Main] Generated Script Content (first 500 chars):\n', scriptContent.substring(0, 500) + '...');
-      fs.writeFileSync(tempScriptPath, scriptContent, { mode: 0o755 });
-      console.log('[Main] Created temporary shell script:', tempScriptPath);
-
-      if (platform === 'linux') {
-        command = `x-terminal-emulator -e "sh \\"${shellTempScriptPath}\\""`;
-      } else if (platform === 'win32') {
-        let wslScriptPath = tempScriptPath.replace(/\\/g, '/');
-        if (/^[A-Za-z]:/.test(wslScriptPath)) {
-            wslScriptPath = `/mnt/${wslScriptPath[0].toLowerCase()}${wslScriptPath.substring(2)}`;
-        }
-        const quotedWslScriptPath = `"${shellEscape(wslScriptPath)}\"`; // Escape for WSL shell
-        command = `start wsl -e sh ${quotedWslScriptPath}`;
-      } else {
-        throw new Error(`Unsupported platform: ${platform}`);
-      }
-
-      console.log('[Main] Running command:', command);
-      await execAsync(command);
-      return { success: true };
-    } catch (error) {
-      console.error('[Main] Error opening terminal:', error);
-      try {
-        fs.appendFileSync(debugLogPath, `\n--- ERROR IN MAIN PROCESS --- \n ${error.message} \n ${error.stack} \n`);
-      } catch (logError) { console.error("Failed to write error to debug log:", logError); }
-      return { success: false, error: error.message || 'Failed to open terminal' };
+// IPC Handlers
+ipcMain.handle('aws-sso:init', async (_, { region }) => {
+  try {
+    console.log('[Main] Initializing AWS SSO with region:', region);
+    
+    if (!region) {
+      throw new Error('Region is required');
     }
-  });
-
-  // IPC Handlers
-  ipcMain.handle('aws-sso:init', async (_, { region }) => {
+    
+    currentRegion = region;
+    
+    // Create new AWS SDK clients with proper error handling
     try {
-      console.log('[Main] Initializing AWS SSO with region:', region);
-      
-      if (!region) {
-        throw new Error('Region is required');
-      }
-      
-      currentRegion = region;
-      
-      // Create new AWS SDK clients with proper error handling
-      try {
-        ssoOidcClient = new SSOOIDCClient({ region });
-        ssoClient = new SSOClient({ region });
-        console.log('[Main] AWS SDK clients created successfully');
-      } catch (sdkError) {
-        console.error('[Main] Error creating AWS SDK clients:', sdkError);
-        throw new Error(`Failed to initialize AWS SDK: ${sdkError.message}`);
-      }
-      
-      // Save region to settings
+      ssoOidcClient = new SSOOIDCClient({ region });
+      ssoClient = new SSOClient({ region });
+      console.log('[Main] AWS SDK clients created successfully');
+    } catch (sdkError) {
+      console.error('[Main] Error creating AWS SDK clients:', sdkError);
+      throw new Error(`Failed to initialize AWS SDK: ${sdkError.message}`);
+    }
+    
+    // Save region to settings
+    const settings = getSettings();
+    settings.region = region;
+    saveSettings(settings);
+    console.log('[Main] Region saved to settings:', region);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Error in aws-sso:init:', error);
+    throw error; // Propagate error back to renderer
+  }
+});
+
+ipcMain.handle('aws-sso:start-login', async (_, { startUrl }) => {
+  try {
+    if (!ssoOidcClient) {
+      throw new Error('SSO client not initialized');
+    }
+
+    // Save startUrl to settings
+    const settings = getSettings();
+    settings.ssoUrl = startUrl;
+    saveSettings(settings);
+
+    // Register client if not already registered
+    if (!clientId || !clientSecret) {
+      const registerCommand = new RegisterClientCommand({
+        clientName: 'aws-sso-switcher',
+        clientType: 'public'
+      });
+      const response = await ssoOidcClient.send(registerCommand);
+      clientId = response.clientId;
+      clientSecret = response.clientSecret;
+    }
+
+    // Start device authorization
+    const startAuthCommand = new StartDeviceAuthorizationCommand({
+      clientId,
+      clientSecret,
+      startUrl
+    });
+
+    const deviceAuth = await ssoOidcClient.send(startAuthCommand);
+    return {
+      verificationUriComplete: deviceAuth.verificationUriComplete,
+      deviceCode: deviceAuth.deviceCode,
+      userCode: deviceAuth.userCode
+    };
+  } catch (error) {
+    console.error('Error starting SSO login:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('aws-sso:poll-token', async (_, { deviceCode }) => {
+  try {
+    if (!ssoOidcClient || !clientId || !clientSecret) {
+      throw new Error('SSO client not initialized or missing client credentials');
+    }
+
+    const tokenCommand = new CreateTokenCommand({
+      clientId,
+      clientSecret,
+      grantType: 'urn:ietf:params:oauth:grant-type:device_code',
+      deviceCode
+    });
+
+    const tokenResponse = await ssoOidcClient.send(tokenCommand);
+    const accessToken = tokenResponse.accessToken;
+    
+    // Save the session for future use
+    const expirationTime = tokenResponse.expiresAt ? 
+      new Date(tokenResponse.expiresAt).getTime() : 
+      Date.now() + 8 * 60 * 60 * 1000; // Default 8 hour expiration
+    
+    saveSession(accessToken, expirationTime);
+
+    // Create SSO cache file
+    try {
       const settings = getSettings();
-      settings.region = region;
-      saveSettings(settings);
-      console.log('[Main] Region saved to settings:', region);
-      
-      return { success: true };
-    } catch (error) {
-      console.error('[Main] Error in aws-sso:init:', error);
-      throw error; // Propagate error back to renderer
-    }
-  });
-
-  ipcMain.handle('aws-sso:start-login', async (_, { startUrl }) => {
-    try {
-      if (!ssoOidcClient) {
-        throw new Error('SSO client not initialized');
-      }
-
-      // Save startUrl to settings
-      const settings = getSettings();
-      settings.ssoUrl = startUrl;
-      saveSettings(settings);
-
-      // Register client if not already registered
-      if (!clientId || !clientSecret) {
-        const registerCommand = new RegisterClientCommand({
-          clientName: 'aws-sso-switcher',
-          clientType: 'public'
-        });
-        const response = await ssoOidcClient.send(registerCommand);
-        clientId = response.clientId;
-        clientSecret = response.clientSecret;
-      }
-
-      // Start device authorization
-      const startAuthCommand = new StartDeviceAuthorizationCommand({
-        clientId,
-        clientSecret,
-        startUrl
-      });
-
-      const deviceAuth = await ssoOidcClient.send(startAuthCommand);
-      return {
-        verificationUriComplete: deviceAuth.verificationUriComplete,
-        deviceCode: deviceAuth.deviceCode,
-        userCode: deviceAuth.userCode
-      };
-    } catch (error) {
-      console.error('Error starting SSO login:', error);
-      throw error;
-    }
-  });
-
-  ipcMain.handle('aws-sso:poll-token', async (_, { deviceCode }) => {
-    try {
-      if (!ssoOidcClient || !clientId || !clientSecret) {
-        throw new Error('SSO client not initialized or missing client credentials');
-      }
-
-      const tokenCommand = new CreateTokenCommand({
-        clientId,
-        clientSecret,
-        grantType: 'urn:ietf:params:oauth:grant-type:device_code',
-        deviceCode
-      });
-
-      const tokenResponse = await ssoOidcClient.send(tokenCommand);
-      const accessToken = tokenResponse.accessToken;
-      
-      // Save the session for future use
-      const expirationTime = tokenResponse.expiresAt ? 
-        new Date(tokenResponse.expiresAt).getTime() : 
-        Date.now() + 8 * 60 * 60 * 1000; // Default 8 hour expiration
-      
-      saveSession(accessToken, expirationTime);
-
-      // Create SSO cache file
-      try {
-        const settings = getSettings();
-        const homedir = os.homedir();
-        const ssoCacheDir = path.join(homedir, '.aws', 'sso', 'cache');
-        
-        // Create cache directory if it doesn't exist
-        if (!fs.existsSync(ssoCacheDir)) {
-          fs.mkdirSync(ssoCacheDir, { recursive: true });
-        }
-
-        // Create a hash of the start URL to use as the filename
-        const startUrl = settings.ssoUrl;
-        const hash = require('crypto').createHash('sha1').update(startUrl).digest('hex');
-        const cacheFile = path.join(ssoCacheDir, `${hash}.json`);
-
-        // Create the cache file content
-        const cacheContent = {
-          startUrl: settings.ssoUrl,
-          region: settings.region,
-          accessToken: accessToken,
-          expiresAt: new Date(expirationTime).toISOString(),
-          clientId: clientId,
-          clientSecret: clientSecret
-        };
-
-        // Write the cache file
-        fs.writeFileSync(cacheFile, JSON.stringify(cacheContent, null, 2));
-        console.log('Created SSO cache file:', cacheFile);
-      } catch (error) {
-        console.error('Error creating SSO cache file:', error);
-        // Don't throw the error, just log it since this is not critical
-      }
-      
-      return { accessToken };
-    } catch (error) {
-      if (error.name === 'AuthorizationPendingException') {
-        return { pending: true };
-      }
-      throw error;
-    }
-  });
-
-  ipcMain.handle('aws-sso:list-accounts', async (_, { accessToken }) => {
-    try {
-      if (!ssoClient) throw new Error('SSO client not initialized');
-      
-      let nextToken;
-      const allAccounts = [];
-      
-      do {
-        const command = new ListAccountsCommand({ 
-          accessToken,
-          nextToken
-        });
-        const response = await ssoClient.send(command);
-        
-        if (response.accountList) {
-          allAccounts.push(...response.accountList);
-        }
-        
-        nextToken = response.nextToken;
-      } while (nextToken);
-      
-      console.log(`[Main] Retrieved total ${allAccounts.length} accounts`);
-      return { accounts: allAccounts };
-    } catch (error) {
-      console.error('Error listing accounts:', error);
-      throw error;
-    }
-  });
-
-  ipcMain.handle('aws-sso:list-account-roles', async (_, { accessToken, accountId }) => {
-    try {
-      if (!ssoClient) throw new Error('SSO client not initialized');
-      const command = new ListAccountRolesCommand({ accessToken, accountId });
-      const response = await ssoClient.send(command);
-      return { roles: response.roleList || [] };
-    } catch (error) {
-      console.error('Error listing roles:', error);
-      throw error;
-    }
-  });
-
-  ipcMain.handle('aws-sso:get-role-credentials', async (_, { accessToken, accountId, roleName }) => {
-    try {
-      if (!ssoClient) throw new Error('SSO client not initialized');
-      console.log(`Getting credentials for account ${accountId} and role ${roleName}`);
-      
-      const command = new GetRoleCredentialsCommand({ 
-        accessToken, 
-        accountId, 
-        roleName 
-      });
-      
-      const response = await ssoClient.send(command);
-      
-      if (!response.roleCredentials) {
-        throw new Error('No role credentials returned');
-      }
-      
-      return {
-        accessKeyId: response.roleCredentials.accessKeyId,
-        secretAccessKey: response.roleCredentials.secretAccessKey,
-        sessionToken: response.roleCredentials.sessionToken,
-        expiration: response.roleCredentials.expiration,
-        // Include these additional properties for helpful context in the terminal
-        accountId: accountId,
-        roleName: roleName,
-        region: currentRegion
-      };
-    } catch (error) {
-      console.error('Error getting role credentials:', error);
-      throw error;
-    }
-  });
-
-  ipcMain.handle('aws-sso:logout', async () => {
-    try {
-      // Reset state
-      clientId = null;
-      clientSecret = null;
-      currentRegion = null;
-      ssoOidcClient = null;
-      ssoClient = null;
-      
-      // Clear the saved session
-      clearSession();
-      
-      // Delete AWS SSO cache files
       const homedir = os.homedir();
       const ssoCacheDir = path.join(homedir, '.aws', 'sso', 'cache');
       
-      // Check if directory exists
-      if (fs.existsSync(ssoCacheDir)) {
-        console.log(`Deleting AWS SSO cache files from ${ssoCacheDir}`);
-        
-        try {
-          // Read all files in the directory
-          const files = fs.readdirSync(ssoCacheDir);
-          
-          // Delete each file
-          for (const file of files) {
-            const filePath = path.join(ssoCacheDir, file);
-            fs.unlinkSync(filePath);
-            console.log(`Deleted cache file: ${filePath}`);
-          }
-          
-          console.log('Successfully cleared AWS SSO cache');
-        } catch (error) {
-          console.error('Error deleting SSO cache files:', error);
-        }
-      } else {
-        console.log('AWS SSO cache directory does not exist');
+      // Create cache directory if it doesn't exist
+      if (!fs.existsSync(ssoCacheDir)) {
+        fs.mkdirSync(ssoCacheDir, { recursive: true });
       }
-      
-      return { success: true };
+
+      // Create a hash of the start URL to use as the filename
+      const startUrl = settings.ssoUrl;
+      const hash = require('crypto').createHash('sha1').update(startUrl).digest('hex');
+      const cacheFile = path.join(ssoCacheDir, `${hash}.json`);
+
+      // Create the cache file content
+      const cacheContent = {
+        startUrl: settings.ssoUrl,
+        region: settings.region,
+        accessToken: accessToken,
+        expiresAt: new Date(expirationTime).toISOString(),
+        clientId: clientId,
+        clientSecret: clientSecret
+      };
+
+      // Write the cache file
+      fs.writeFileSync(cacheFile, JSON.stringify(cacheContent, null, 2));
+      console.log('Created SSO cache file:', cacheFile);
     } catch (error) {
-      console.error('Error during logout:', error);
-      return { success: false, error: error.message };
+      console.error('Error creating SSO cache file:', error);
+      // Don't throw the error, just log it since this is not critical
     }
-  });
-
-  // Handler for getting default profile
-  ipcMain.handle('aws-sso:get-default-profile', async () => {
-    return getDefaultProfile();
-  });
-
-  // Handler for setting default profile
-  ipcMain.handle('aws-sso:set-default-profile', async (_, { accountId, roleName }) => {
-    await setDefaultProfile(accountId, roleName);
-    return { success: true };
-  });
-
-  // Add ECR login handler
-  ipcMain.handle('aws-sso:login-ecr', async (_, { accountId, roleName }) => {
-    console.log('[Main] ECR login requested:', { accountId, roleName });
     
-    if (!currentRegion) {
-      throw new Error('Region not initialized');
+    return { accessToken };
+  } catch (error) {
+    if (error.name === 'AuthorizationPendingException') {
+      return { pending: true };
     }
+    throw error;
+  }
+});
 
-    try {
-      // First check if Docker is running
-      try {
-        console.log('[Main] Checking if Docker is running');
-        await execAsync('docker info');
-      } catch (dockerError) {
-        console.error('[Main] Docker is not running:', dockerError.message);
-        return {
-          success: false,
-          message: 'Docker is not running. Please start Docker and try again.',
-          timestamp: Date.now()
-        };
-      }
-
-      // Get the current session
-      const session = getSession();
-      if (!session || !session.accessToken) {
-        throw new Error('No active session. Please authenticate first.');
-      }
-
-      // Get credentials for the role
-      console.log('[Main] Getting role credentials for ECR login');
-      const command = new GetRoleCredentialsCommand({ 
-        accessToken: session.accessToken, 
-        accountId, 
-        roleName 
+ipcMain.handle('aws-sso:list-accounts', async (_, { accessToken }) => {
+  try {
+    if (!ssoClient) throw new Error('SSO client not initialized');
+    
+    let nextToken;
+    const allAccounts = [];
+    
+    do {
+      const command = new ListAccountsCommand({ 
+        accessToken,
+        nextToken
       });
-      
       const response = await ssoClient.send(command);
       
-      if (!response.roleCredentials) {
-        throw new Error('No role credentials returned');
+      if (response.accountList) {
+        allAccounts.push(...response.accountList);
       }
+      
+      nextToken = response.nextToken;
+    } while (nextToken);
+    
+    console.log(`[Main] Retrieved total ${allAccounts.length} accounts`);
+    return { accounts: allAccounts };
+  } catch (error) {
+    console.error('Error listing accounts:', error);
+    throw error;
+  }
+});
 
-      // Get ECR login password using subprocess with credentials as environment variables
-      console.log('[Main] Getting ECR login password with credentials');
-      const { stdout: password, stderr: passError } = await execAsync(
-        `aws ecr get-login-password --region ${currentRegion}`,
-        {
-          env: {
-            ...process.env,
-            AWS_ACCESS_KEY_ID: response.roleCredentials.accessKeyId,
-            AWS_SECRET_ACCESS_KEY: response.roleCredentials.secretAccessKey,
-            AWS_SESSION_TOKEN: response.roleCredentials.sessionToken
-          }
-        }
-      );
+ipcMain.handle('aws-sso:list-account-roles', async (_, { accessToken, accountId }) => {
+  try {
+    if (!ssoClient) throw new Error('SSO client not initialized');
+    const command = new ListAccountRolesCommand({ accessToken, accountId });
+    const response = await ssoClient.send(command);
+    return { roles: response.roleList || [] };
+  } catch (error) {
+    console.error('Error listing roles:', error);
+    throw error;
+  }
+});
 
-      if (passError) {
-        throw new Error(`Failed to get ECR password: ${passError}`);
-      }
+ipcMain.handle('aws-sso:get-role-credentials', async (_, { accessToken, accountId, roleName }) => {
+  try {
+    if (!ssoClient) throw new Error('SSO client not initialized');
+    console.log(`Getting credentials for account ${accountId} and role ${roleName}`);
+    
+    const command = new GetRoleCredentialsCommand({ 
+      accessToken, 
+      accountId, 
+      roleName 
+    });
+    
+    const response = await ssoClient.send(command);
+    
+    if (!response.roleCredentials) {
+      throw new Error('No role credentials returned');
+    }
+    
+    return {
+      accessKeyId: response.roleCredentials.accessKeyId,
+      secretAccessKey: response.roleCredentials.secretAccessKey,
+      sessionToken: response.roleCredentials.sessionToken,
+      expiration: response.roleCredentials.expiration,
+      // Include these additional properties for helpful context in the terminal
+      accountId: accountId,
+      roleName: roleName,
+      region: currentRegion
+    };
+  } catch (error) {
+    console.error('Error getting role credentials:', error);
+    throw error;
+  }
+});
 
-      // Login to ECR using docker
-      console.log('[Main] Executing docker login');
-      const loginCmd = `echo ${password.trim()} | docker login --username AWS --password-stdin ${accountId}.dkr.ecr.${currentRegion}.amazonaws.com`;
+ipcMain.handle('aws-sso:logout', async () => {
+  try {
+    // Reset state
+    clientId = null;
+    clientSecret = null;
+    currentRegion = null;
+    ssoOidcClient = null;
+    ssoClient = null;
+    
+    // Clear the saved session
+    clearSession();
+    
+    // Delete AWS SSO cache files
+    const homedir = os.homedir();
+    const ssoCacheDir = path.join(homedir, '.aws', 'sso', 'cache');
+    
+    // Check if directory exists
+    if (fs.existsSync(ssoCacheDir)) {
+      console.log(`Deleting AWS SSO cache files from ${ssoCacheDir}`);
       
       try {
-        const { stdout, stderr } = await execAsync(loginCmd);
-        console.log('[Main] Docker login stdout:', stdout);
-        console.log('[Main] Docker login stderr:', stderr);
-
-        // Check stdout for success message (newer Docker versions)
-        const isSuccessInStdout = stdout && (
-          stdout.includes('Login Succeeded') || 
-          stdout.includes('login succeeded')
-        );
-
-        // Check stderr for known messages that aren't actually errors
-        const isInformationalInStderr = stderr && (
-          stderr.includes('Login Succeeded') || 
-          stderr.includes('login succeeded') ||
-          stderr.includes('Logging in with your password grants') || 
-          stderr.includes('access-tokens')
-        );
-
-        // Docker login might succeed even with stderr output containing informational messages
-        // Login will succeed if the stderr only contains informational messages about
-        // password authentication security or tokens
-        const onlyHasInfoMessages = stderr && 
-          (stderr.includes('Logging in with your password grants') || 
-           stderr.includes('access-tokens')) &&
-          !stderr.includes('error') && 
-          !stderr.includes('Error') && 
-          !stderr.includes('failed') && 
-          !stderr.includes('Failed');
-
-        // If we have an error message that's not just informational, fail
-        if (stderr && !isInformationalInStderr && !isSuccessInStdout && !onlyHasInfoMessages) {
-          throw new Error(`Docker login failed: ${stderr}`);
-        }
-
-        // If we get here, docker login succeeded
-        console.log('[Main] ECR login successful');
+        // Read all files in the directory
+        const files = fs.readdirSync(ssoCacheDir);
         
-        // If we have informational messages but login succeeded, include them in the response
-        // so the user can see them
-        let successMessage = 'Successfully logged in to ECR';
-        if (onlyHasInfoMessages) {
-          successMessage = `Successfully logged in to ECR (with notifications from Docker)`;
+        // Delete each file
+        for (const file of files) {
+          const filePath = path.join(ssoCacheDir, file);
+          fs.unlinkSync(filePath);
+          console.log(`Deleted cache file: ${filePath}`);
         }
         
-        return {
-          success: true,
-          message: successMessage,
-          timestamp: Date.now()
-        };
-      } catch (dockerLoginError) {
-        console.error('[Main] Docker login error:', dockerLoginError);
-        return {
-          success: false,
-          message: `Docker login failed: ${dockerLoginError.message}`,
-          timestamp: Date.now()
-        };
+        console.log('Successfully cleared AWS SSO cache');
+      } catch (error) {
+        console.error('Error deleting SSO cache files:', error);
       }
-    } catch (error) {
-      console.error('[Main] ECR login failed:', error);
+    } else {
+      console.log('AWS SSO cache directory does not exist');
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error during logout:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler for getting default profile
+ipcMain.handle('aws-sso:get-default-profile', async () => {
+  return getDefaultProfile();
+});
+
+// Handler for setting default profile
+ipcMain.handle('aws-sso:set-default-profile', async (_, { accountId, roleName }) => {
+  await setDefaultProfile(accountId, roleName);
+  return { success: true };
+});
+
+// Add ECR login handler
+ipcMain.handle('aws-sso:login-ecr', async (_, { accountId, roleName }) => {
+  console.log('[Main] ECR login requested:', { accountId, roleName });
+  
+  if (!currentRegion) {
+    throw new Error('Region not initialized');
+  }
+
+  try {
+    // First check if Docker is running
+    try {
+      console.log('[Main] Checking if Docker is running');
+      await execAsync('docker info');
+    } catch (dockerError) {
+      console.error('[Main] Docker is not running:', dockerError.message);
       return {
         success: false,
-        message: error.message || 'Failed to login to ECR',
+        message: 'Docker is not running. Please start Docker and try again.',
         timestamp: Date.now()
       };
     }
-  });
 
-  // Add CodeArtifact login handler
-  ipcMain.handle('aws-sso:login-codeartifact', async (_, { accountId, roleName }) => {
-    console.log('[Main] CodeArtifact login requested:', { accountId, roleName });
-    
-    if (!currentRegion) {
-      throw new Error('Region not initialized');
+    // Get the current session
+    const session = getSession();
+    if (!session || !session.accessToken) {
+      throw new Error('No active session. Please authenticate first.');
     }
 
+    // Get credentials for the role
+    console.log('[Main] Getting role credentials for ECR login');
+    const command = new GetRoleCredentialsCommand({ 
+      accessToken: session.accessToken, 
+      accountId, 
+      roleName 
+    });
+    
+    const response = await ssoClient.send(command);
+    
+    if (!response.roleCredentials) {
+      throw new Error('No role credentials returned');
+    }
+
+    // Get ECR login password using subprocess with credentials as environment variables
+    console.log('[Main] Getting ECR login password with credentials');
+    const { stdout: password, stderr: passError } = await execAsync(
+      `aws ecr get-login-password --region ${currentRegion}`,
+      {
+        env: {
+          ...process.env,
+          AWS_ACCESS_KEY_ID: response.roleCredentials.accessKeyId,
+          AWS_SECRET_ACCESS_KEY: response.roleCredentials.secretAccessKey,
+          AWS_SESSION_TOKEN: response.roleCredentials.sessionToken
+        }
+      }
+    );
+
+    if (passError) {
+      throw new Error(`Failed to get ECR password: ${passError}`);
+    }
+
+    // Login to ECR using docker
+    console.log('[Main] Executing docker login');
+    const loginCmd = `echo ${password.trim()} | docker login --username AWS --password-stdin ${accountId}.dkr.ecr.${currentRegion}.amazonaws.com`;
+    
     try {
-      // First get the current session
-      const session = getSession();
-      if (!session || !session.accessToken) {
-        throw new Error('No active session. Please authenticate first.');
+      const { stdout, stderr } = await execAsync(loginCmd);
+      console.log('[Main] Docker login stdout:', stdout);
+      console.log('[Main] Docker login stderr:', stderr);
+
+      // Check stdout for success message (newer Docker versions)
+      const isSuccessInStdout = stdout && (
+        stdout.includes('Login Succeeded') || 
+        stdout.includes('login succeeded')
+      );
+
+      // Check stderr for known messages that aren't actually errors
+      const isInformationalInStderr = stderr && (
+        stderr.includes('Login Succeeded') || 
+        stderr.includes('login succeeded') ||
+        stderr.includes('Logging in with your password grants') || 
+        stderr.includes('access-tokens')
+      );
+
+      // Docker login might succeed even with stderr output containing informational messages
+      // Login will succeed if the stderr only contains informational messages about
+      // password authentication security or tokens
+      const onlyHasInfoMessages = stderr && 
+        (stderr.includes('Logging in with your password grants') || 
+         stderr.includes('access-tokens')) &&
+        !stderr.includes('error') && 
+        !stderr.includes('Error') && 
+        !stderr.includes('failed') && 
+        !stderr.includes('Failed');
+
+      // If we have an error message that's not just informational, fail
+      if (stderr && !isInformationalInStderr && !isSuccessInStdout && !onlyHasInfoMessages) {
+        throw new Error(`Docker login failed: ${stderr}`);
       }
 
-      // Get credentials for the role
-      console.log('[Main] Getting role credentials for CodeArtifact login');
-      const command = new GetRoleCredentialsCommand({ 
-        accessToken: session.accessToken, 
-        accountId, 
-        roleName 
-      });
+      // If we get here, docker login succeeded
+      console.log('[Main] ECR login successful');
       
-      const response = await ssoClient.send(command);
-      
-      if (!response.roleCredentials) {
-        throw new Error('No role credentials returned');
+      // If we have informational messages but login succeeded, include them in the response
+      // so the user can see them
+      let successMessage = 'Successfully logged in to ECR';
+      if (onlyHasInfoMessages) {
+        successMessage = `Successfully logged in to ECR (with notifications from Docker)`;
       }
-
-      // Setup credentials environment
-      const credentialsEnv = {
-        ...process.env,
-        AWS_ACCESS_KEY_ID: response.roleCredentials.accessKeyId,
-        AWS_SECRET_ACCESS_KEY: response.roleCredentials.secretAccessKey,
-        AWS_SESSION_TOKEN: response.roleCredentials.sessionToken,
-        AWS_REGION: currentRegion
+      
+      return {
+        success: true,
+        message: successMessage,
+        timestamp: Date.now()
       };
+    } catch (dockerLoginError) {
+      console.error('[Main] Docker login error:', dockerLoginError);
+      return {
+        success: false,
+        message: `Docker login failed: ${dockerLoginError.message}`,
+        timestamp: Date.now()
+      };
+    }
+  } catch (error) {
+    console.error('[Main] ECR login failed:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to login to ECR',
+      timestamp: Date.now()
+    };
+  }
+});
 
-      // Check CodeArtifact login status first
-      console.log('[Main] Checking CodeArtifact login status...');
-      const { stdout: checkResult, stderr: checkError } = await execAsync(
-        'pip index versions non-existent-package 2>&1 | grep -q "401" && echo "❌ Not logged in to CodeArtifact" || echo "✅ Logged in to CodeArtifact"',
+// Add CodeArtifact login handler
+ipcMain.handle('aws-sso:login-codeartifact', async (_, { accountId, roleName }) => {
+  console.log('[Main] CodeArtifact login requested:', { accountId, roleName });
+  
+  if (!currentRegion) {
+    throw new Error('Region not initialized');
+  }
+
+  try {
+    // First get the current session
+    const session = getSession();
+    if (!session || !session.accessToken) {
+      throw new Error('No active session. Please authenticate first.');
+    }
+
+    // Get credentials for the role
+    console.log('[Main] Getting role credentials for CodeArtifact login');
+    const command = new GetRoleCredentialsCommand({ 
+      accessToken: session.accessToken, 
+      accountId, 
+      roleName 
+    });
+    
+    const response = await ssoClient.send(command);
+    
+    if (!response.roleCredentials) {
+      throw new Error('No role credentials returned');
+    }
+
+    // Setup credentials environment
+    const credentialsEnv = {
+      ...process.env,
+      AWS_ACCESS_KEY_ID: response.roleCredentials.accessKeyId,
+      AWS_SECRET_ACCESS_KEY: response.roleCredentials.secretAccessKey,
+      AWS_SESSION_TOKEN: response.roleCredentials.sessionToken,
+      AWS_REGION: currentRegion
+    };
+
+    // Check CodeArtifact login status first
+    console.log('[Main] Checking CodeArtifact login status...');
+    const { stdout: checkResult, stderr: checkError } = await execAsync(
+      'pip index versions non-existent-package 2>&1 | grep -q "401" && echo "❌ Not logged in to CodeArtifact" || echo "✅ Logged in to CodeArtifact"',
+      { env: credentialsEnv }
+    );
+
+    if (checkError) {
+      throw new Error(`Failed to check CodeArtifact status: ${checkError}`);
+    }
+
+    // If not logged in, perform login
+    if (checkResult.includes('❌')) {
+      console.log('[Main] Logging into CodeArtifact...');
+      const { stderr: loginError } = await execAsync(
+        `aws codeartifact login --tool pip --domain your-domain --domain-owner ${accountId} --region ${currentRegion}`,
         { env: credentialsEnv }
       );
 
-      if (checkError) {
-        throw new Error(`Failed to check CodeArtifact status: ${checkError}`);
+      if (loginError) {
+        throw new Error(`CodeArtifact login failed: ${loginError}`);
       }
 
-      // If not logged in, perform login
-      if (checkResult.includes('❌')) {
-        console.log('[Main] Logging into CodeArtifact...');
-        const { stderr: loginError } = await execAsync(
-          `aws codeartifact login --tool pip --domain your-domain --domain-owner ${accountId} --region ${currentRegion}`,
-          { env: credentialsEnv }
-        );
-
-        if (loginError) {
-          throw new Error(`CodeArtifact login failed: ${loginError}`);
-        }
-
-        console.log('[Main] CodeArtifact login successful');
-        return {
-          success: true,
-          message: 'Successfully logged in to CodeArtifact',
-          timestamp: Date.now()
-        };
-      }
-
-      // Already logged in
+      console.log('[Main] CodeArtifact login successful');
       return {
         success: true,
-        message: 'Already logged in to CodeArtifact',
-        timestamp: Date.now()
-      };
-
-    } catch (error) {
-      console.error('[Main] CodeArtifact login failed:', error);
-      return {
-        success: false,
-        message: error.message || 'Failed to login to CodeArtifact',
+        message: 'Successfully logged in to CodeArtifact',
         timestamp: Date.now()
       };
     }
-  });
 
-  // Add Docker status check handler
-  ipcMain.handle('aws-sso:check-docker-status', async () => {
-    try {
-      console.log('[Main] Checking Docker status');
-      await execAsync('docker info');
-      
-      console.log('[Main] Docker is running');
-      return {
-        running: true,
-        message: 'Docker is running'
-      };
-    } catch (error) {
-      console.error('[Main] Docker is not running:', error.message);
-      
-      let errorMessage = 'Docker is not running';
-      if (error.message.includes('connection refused')) {
-        errorMessage = 'Docker daemon connection refused';
-      } else if (error.message.includes('Cannot connect')) {
-        errorMessage = 'Cannot connect to Docker daemon';
-      }
-      
-      return {
-        running: false,
-        message: errorMessage
-      };
-    }
-  });
-
-  // IPC handler for getting app info
-  ipcMain.handle('get-app-info', () => {
+    // Already logged in
     return {
-      versions: {
-        node: process.versions.node,
-        chrome: process.versions.chrome,
-        electron: process.versions.electron
-      }
+      success: true,
+      message: 'Already logged in to CodeArtifact',
+      timestamp: Date.now()
     };
-  });
 
-  // IPC handler for getting app version
-  ipcMain.handle('app:version', () => {
+  } catch (error) {
+    console.error('[Main] CodeArtifact login failed:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to login to CodeArtifact',
+      timestamp: Date.now()
+    };
+  }
+});
+
+// Add Docker status check handler
+ipcMain.handle('aws-sso:check-docker-status', async () => {
+  try {
+    console.log('[Main] Checking Docker status');
+    await execAsync('docker info');
+    
+    console.log('[Main] Docker is running');
+    return {
+      running: true,
+      message: 'Docker is running'
+    };
+  } catch (error) {
+    console.error('[Main] Docker is not running:', error.message);
+    
+    let errorMessage = 'Docker is not running';
+    if (error.message.includes('connection refused')) {
+      errorMessage = 'Docker daemon connection refused';
+    } else if (error.message.includes('Cannot connect')) {
+      errorMessage = 'Cannot connect to Docker daemon';
+    }
+    
+    return {
+      running: false,
+      message: errorMessage
+    };
+  }
+});
+
+// IPC handler for getting app info
+ipcMain.handle('get-app-info', () => {
+  return {
+    versions: {
+      node: process.versions.node,
+      chrome: process.versions.chrome,
+      electron: process.versions.electron
+    }
+  };
+});
+
+// IPC handler for getting app version
+ipcMain.handle('app:version', () => {
     return electronApp.getVersion();
   });
 }
@@ -1363,7 +1460,7 @@ if (isElectronApp) {
   electronApp.whenReady().then(() => {
     try {
       console.log('[Main] Creating application window...');
-      createWindow();
+  createWindow();
       console.log('[Main] Window created successfully');
 
       electronApp.on('activate', function () {
@@ -1378,20 +1475,20 @@ if (isElectronApp) {
       console.error('[Main] Error stack:', error.stack);
       throw error; // Re-throw to be caught by the catch below
     }
-  }).catch(err => {
+}).catch(err => {
     console.error('[Main] Error during app initialization:', err);
     console.error('[Main] Error message:', err.message);
     console.error('[Main] Error stack:', err.stack);
-  });
+});
 
-  // Global error handler
-  process.on('uncaughtException', (error) => {
+// Global error handler
+process.on('uncaughtException', (error) => {
     console.error('[Main] Uncaught Exception:', error);
     console.error('[Main] Error message:', error.message);
     console.error('[Main] Error stack:', error.stack);
-  });
+});
 
   electronApp.on('window-all-closed', function () {
     if (process.platform !== 'darwin') electronApp.quit();
-  });
+}); 
 } 

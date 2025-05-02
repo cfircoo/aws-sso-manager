@@ -139,30 +139,8 @@ const QuickAccess: React.FC<QuickAccessProps> = ({
               </button>
               
               <button
-                onClick={() => onOpenTerminal(role.accountId, role.roleName)}
-                title="Open In-App Terminal"
-                style={{
-                  flex: 1,
-                  backgroundColor: '#7e57c2',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  fontSize: '0.875rem'
-                }}
-              >
-                <Terminal size={16} />
-                <span>Terminal</span>
-              </button>
-              
-              <button
                 onClick={() => onOpenDefaultTerminal(role.accountId, role.roleName)}
-                title="Open System Terminal"
+                title="Open Terminal"
                 style={{
                   flex: 1,
                   backgroundColor: '#2e7d32',
@@ -179,7 +157,7 @@ const QuickAccess: React.FC<QuickAccessProps> = ({
                 }}
               >
                 <Terminal size={16} />
-                <span>System</span>
+                <span>Terminal</span>
               </button>
             </div>
           </div>
