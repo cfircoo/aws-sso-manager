@@ -3,7 +3,7 @@ process.env.NODE_OPTIONS = '--no-warnings';
 // Initialize logger
 require('./src/lib/logger.js');
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app: electronApp, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { SSOOIDCClient, RegisterClientCommand, StartDeviceAuthorizationCommand, CreateTokenCommand } = require('@aws-sdk/client-sso-oidc');
@@ -12,14 +12,20 @@ const { ECRClient, DescribeRepositoriesCommand } = require('@aws-sdk/client-ecr'
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const os = require('os');
+const paths = require('./src/lib/paths');
+
+// Handle direct execution with Node.js without Electron context
+const isElectronApp = !!electronApp;
+if (!isElectronApp) {
+  console.log('Running in standalone Node.js mode (not in Electron context)');
+}
 
 // Add debugging and error logging
 console.log('Starting AWS SSO Switcher application...');
-console.log('App path:', app.getAppPath());
+console.log('App path:', isElectronApp ? electronApp.getAppPath() : process.cwd());
 
 // Settings file path for manual storage
-const userLibraryPath = path.join(process.env.HOME || '', 'Library/aws-sso-manager');
-const settingsFilePath = path.join(userLibraryPath, 'settings.json');
+const settingsFilePath = paths.getSettingsFilePath({ app: electronApp });
 
 // Log settings file information at startup
 console.log('Settings file path:', settingsFilePath);
@@ -31,8 +37,11 @@ if (fs.existsSync(settingsFilePath)) {
 }
 
 // Create application directory if it doesn't exist
-if (!fs.existsSync(userLibraryPath)) {
-  fs.mkdirSync(userLibraryPath, { recursive: true });
+const userAppPath = paths.getPlatformAppPath({ app: electronApp });
+if (!fs.existsSync(userAppPath)) {
+  console.log(`Creating app directory: ${userAppPath}`);
+  fs.mkdirSync(userAppPath, { recursive: true });
+  console.log('App directory created successfully');
 }
 
 // Simple settings management
@@ -346,102 +355,6 @@ let ssoClient = null;
 let clientId = null;
 let clientSecret = null;
 
-// IPC handlers for settings
-ipcMain.handle('settings:get', async (_, key) => {
-  const settings = getSettings();
-  return settings[key];
-});
-
-ipcMain.handle('settings:set', async (_, key, value) => {
-  const settings = getSettings();
-  settings[key] = value;
-  return { success: saveSettings(settings) };
-});
-
-ipcMain.handle('settings:get-all', async () => {
-  return getSettings();
-});
-
-ipcMain.handle('settings:set-all', async (_, newSettings) => {
-  const settings = getSettings();
-  
-  // Update all provided settings
-  Object.assign(settings, newSettings);
-  
-  return { success: saveSettings(settings) };
-});
-
-// Session management IPC handlers
-ipcMain.handle('session:check', async () => {
-  return { 
-    valid: hasValidSession(),
-    session: getSession()
-  };
-});
-
-ipcMain.handle('session:clear', async () => {
-  return { success: clearSession() };
-});
-
-// Add store handlers
-ipcMain.handle('store:get', async (_, key) => {
-  console.log(`[Main] Getting store value for key: ${key}`);
-  const settings = getSettings();
-  return settings[key] || null;
-});
-
-ipcMain.handle('store:set', async (_, key, value) => {
-  console.log(`[Main] Setting store value for key: ${key}`);
-  const settings = getSettings();
-  settings[key] = value;
-  return saveSettings(settings);
-});
-
-ipcMain.handle('store:delete', async (_, key) => {
-  console.log(`[Main] Deleting store value for key: ${key}`);
-  const settings = getSettings();
-  if (key in settings) {
-    delete settings[key];
-    return saveSettings(settings);
-  }
-  return true;
-});
-
-ipcMain.handle('store:clear', async () => {
-  console.log(`[Main] Clearing all store values`);
-  return saveSettings({});
-});
-
-// Shell operations handler
-ipcMain.handle('shell:open-external', async (_, url) => {
-  console.log(`[Main] Opening external URL: ${url}`);
-  return shell.openExternal(url);
-});
-
-// Terminal command handler
-ipcMain.handle('aws-sso:run-terminal-command', async (_, options) => {
-  try {
-    console.log(`[Main] Running terminal command: ${options.command}`);
-    const { command, env = {} } = options;
-    
-    // Combine with current environment
-    const commandEnv = { ...process.env, ...env };
-    
-    const { stdout, stderr } = await execAsync(command, {
-      env: commandEnv,
-      shell: true
-    });
-    
-    return { stdout, stderr };
-  } catch (error) {
-    console.error(`[Main] Terminal command error:`, error);
-    return { 
-      stdout: '', 
-      stderr: error.message || 'Unknown error executing command'
-    };
-  }
-});
-
 // Helper function to escape a string for shell embedding within double quotes
 const shellEscape = (str) => {
   if (typeof str !== 'string') return '';
@@ -449,9 +362,242 @@ const shellEscape = (str) => {
   return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/`/g, '\\`').replace(/\$/g, '\\$');
 };
 
+// Command-line mode specific behavior
+if (!isElectronApp) {
+  console.log('Running in command-line mode');
+  console.log('Available commands:');
+  console.log('  --help: Show this help message');
+  console.log('  --debug: Show debug information');
+  console.log('  --version: Show version information');
+  console.log('  --get-default-profile: Show current default profile');
+  
+  // Process arguments
+  const args = process.argv.slice(2);
+  if (args.includes('--get-default-profile')) {
+    const profile = getDefaultProfile();
+    console.log('Default AWS SSO Profile:');
+    console.log(profile ? 
+      `Account: ${profile.accountId}, Role: ${profile.roleName}` :
+      'No default profile set');
+  }
+  
+  if (args.includes('--version')) {
+    const packageJson = require('./package.json');
+    console.log(`AWS SSO Manager version: ${packageJson.version}`);
+  }
+  
+  if (args.includes('--help')) {
+    // Help already shown
+  } else if (args.length === 0) {
+    console.log('No command specified. Use --help for available commands.');
+  }
+  
+  // Exit after command-line operations
+  process.exit(0);
+}
+
+// Define createWindow function for Electron mode
+function createWindow() {
+  console.log('[Main] Starting createWindow function');
+  try {
+    const mainWindow = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false
+      }
+    });
+    console.log('[Main] BrowserWindow created');
+
+    // Load the app
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Main] Running in development mode, loading from localhost');
+      mainWindow.loadURL('http://localhost:8084');
+      mainWindow.webContents.openDevTools();
+    } else {
+      // In production mode, load from the built files
+      console.log('[Main] Running in production mode');
+      console.log('[Main] App path:', electronApp.getAppPath());
+      console.log('[Main] Current directory:', __dirname);
+      console.log('[Main] Resource path:', process.resourcesPath);
+      
+      // When packaged, index.html should be in the dist directory
+      let indexPath;
+      
+      if (electronApp.isPackaged) {
+        // In packaged app, load from the resources/dist directory
+        indexPath = path.join(process.resourcesPath, 'dist', 'index.html');
+        console.log('[Main] Loading packaged app from:', indexPath);
+      } else {
+        // In development build, check multiple locations
+        const possiblePaths = [
+          path.join(__dirname, 'dist', 'index.html'),
+          path.join(process.cwd(), 'dist', 'index.html'),
+          path.join(electronApp.getAppPath(), 'dist', 'index.html')
+        ];
+
+        for (const testPath of possiblePaths) {
+          console.log('[Main] Checking path:', testPath);
+          if (fs.existsSync(testPath)) {
+            indexPath = testPath;
+            console.log('[Main] Found index.html at:', indexPath);
+            break;
+          }
+        }
+      }
+
+      if (!indexPath || !fs.existsSync(indexPath)) {
+        console.error('[Main] Could not find index.html');
+        // Load error page from same directory as main.js
+        const errorPath = path.join(__dirname, 'error.html');
+        console.log('[Main] Loading error page from:', errorPath);
+        mainWindow.loadFile(errorPath);
+        return;
+      }
+
+      try {
+        console.log('[Main] Loading from:', indexPath);
+        mainWindow.loadFile(indexPath);
+      } catch (error) {
+        console.error('[Main] Error loading index.html:', error);
+        const errorPath = path.join(__dirname, 'error.html');
+        console.log('[Main] Loading error page from:', errorPath);
+        mainWindow.loadFile(errorPath);
+      }
+    }
+    
+    // Set Content Security Policy
+    mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            "style-src 'self' 'unsafe-inline' data:",
+            "img-src 'self' data: https:",
+            "connect-src 'self' https://*.amazonaws.com https://*.awsapps.com",
+            "font-src 'self' data:",
+            "worker-src 'self' blob:",
+            "frame-src 'self'",
+          ].join('; ')
+        }
+      });
+    });
+
+    // Handle external URLs
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    });
+
+    // Log any load failures
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      console.error('[Main] Failed to load:', errorCode, errorDescription);
+      // Try loading error page on load failure
+      const errorPath = path.join(__dirname, 'error.html');
+      console.log('[Main] Loading error page from:', errorPath);
+      mainWindow.loadFile(errorPath);
+    });
+    
+    console.log('[Main] createWindow function completed successfully');
+  } catch (error) {
+    console.error('[Main] Error in createWindow function:', error);
+    console.error('[Main] Error details:', error.message);
+    console.error('[Main] Error stack:', error.stack);
+    throw error;
+  }
+}
+
+// Specialized function for handling macOS terminals with proper environment persistence
+async function openMacOSTerminal(env, debugLogPath) {
+  console.log('[Main] Opening macOS terminal with persistent AWS environment');
+  
+  try {
+    // Create environment file that will be sourced by the terminal
+    const envFilePath = path.join(os.tmpdir(), `aws-sso-env-${Date.now()}.sh`);
+    
+    // Create the environment file content
+    let envFileContent = `#!/bin/zsh
+# AWS SSO Environment Variables - Created ${new Date().toISOString()}
+# Terminal launched for role ${env.AWS_ROLE_NAME || 'unknown'} in account ${env.AWS_ACCOUNT_ID || 'unknown'}
+# This file will be sourced by your terminal to set up the AWS environment
+
+`;
+
+    // Add all environment variables
+    Object.entries(env).forEach(([key, value]) => {
+      // Use single quotes for values with special characters
+      const escapedValue = value.replace(/'/g, "'\\''"); // Escape single quotes for shell
+      envFileContent += `export ${key}='${escapedValue}'\n`;
+    });
+    
+    // Add helper function
+    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
+      const accountId = env.AWS_ACCOUNT_ID || 'unknown';
+      const roleName = env.AWS_ROLE_NAME || 'unknown';
+      const region = env.AWS_REGION || 'us-east-1';
+      const expiration = env.AWS_EXPIRATION ? parseInt(env.AWS_EXPIRATION, 10) : 0;
+      
+      envFileContent += `
+# Helper function to display current AWS identity
+aws_who_am_i() {
+  echo "--- AWS Identity Info ---"
+  echo "AWS Account: ${accountId}"
+  echo "AWS Role:    ${roleName}"
+  echo "AWS Region:  ${region}"
+  if [ -n "${expiration}" ]; then
+    echo ""
+    # Use a platform-aware date command that works on both macOS and Linux
+    echo "Temporary credentials expire at: $(date -r $(( ${expiration} / 1000 )) 2>/dev/null || date -d @$(( ${expiration} / 1000 )) 2>/dev/null || echo 'Unknown expiration time')"
+  fi
+}
+
+# Display AWS identity information on startup
+aws_who_am_i
+echo ""
+echo "Type 'aws_who_am_i' to see AWS identity information again"
+echo ""
+`;
+    }
+
+    // Write the environment file
+    fs.writeFileSync(envFilePath, envFileContent, { mode: 0o755 });
+    console.log('[Main] Created AWS environment file:', envFilePath);
+    
+    // Escape the path for AppleScript
+    const escapedEnvFilePath = envFilePath.replace(/"/g, '\\"').replace(/'/g, "\\'").replace(/ /g, '\\ ');
+    
+    // Create AppleScript command that sources the environment file upon terminal startup
+    const command = `osascript -e 'tell application "Terminal"
+  do script "source \\"${escapedEnvFilePath}\\"; exec zsh"
+  activate
+end tell'`;
+    
+    console.log('[Main] Running AppleScript command to open Terminal');
+    await execAsync(command);
+    
+    // Write to debug log
+    fs.appendFileSync(debugLogPath, `
+--- MacOS Terminal Launched ---
+Environment file: ${envFilePath}
+Command: ${command}
+`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Error opening macOS terminal:', error);
+    fs.appendFileSync(debugLogPath, `\n--- ERROR IN MAIN PROCESS (MacOS) --- \n ${error.message} \n ${error.stack} \n`);
+    return { success: false, error: error.message || 'Failed to open macOS terminal' };
+  }
+}
+
 // Open system terminal handler
 ipcMain.handle('aws-sso:open-terminal', async (_, options) => {
-  console.log('[Main] Opening system terminal with zsh');
+  console.log('[Main] Opening system terminal');
   const debugLogPath = path.join(os.tmpdir(), 'aws_term_debug.log');
   const shellDebugLogPath = shellEscape(debugLogPath); // Escape for shell usage
 
@@ -466,10 +612,18 @@ ipcMain.handle('aws-sso:open-terminal', async (_, options) => {
 
     // Special handling for macOS for better environment persistence
     if (platform === 'darwin') {
+      console.log('[Main] Opening macOS Terminal with zsh');
       return await openMacOSTerminal(env, debugLogPath);
     }
 
-    // For non-macOS platforms, continue with the original approach
+    // Special handling for Windows
+    if (platform === 'win32') {
+      console.log('[Main] Opening Windows CMD terminal');
+      return await openWindowsTerminal(env, debugLogPath);
+    }
+
+    // For Linux, continue with the original approach
+    console.log('[Main] Opening Linux terminal');
     let command;
     const tempScriptPath = path.join(os.tmpdir(), `aws-sso-terminal-${Date.now()}.sh`);
     const shellTempScriptPath = shellEscape(tempScriptPath); // Escape for shell usage
@@ -517,13 +671,8 @@ ipcMain.handle('aws-sso:open-terminal', async (_, options) => {
       awsWhoAmIFunction += '  echo "AWS Region:  \\${AWS_REGION:-Not Set}";\n';
       awsWhoAmIFunction += '  echo "";\n';
       awsWhoAmIFunction += '  echo -n "Temporary credentials expire at: ";\n';
-       // The date command is complex, pre-construct and embed carefully
-       let dateCommand;
-       if (platform === 'darwin') {
-           dateCommand = `date -r ${expirationSeconds} 2>/dev/null || echo \'Invalid expiration timestamp\'`;
-       } else { // Linux/WSL
-           dateCommand = `date -d @${expirationSeconds} 2>/dev/null || echo \'Invalid expiration timestamp\'`;
-       }
+      // Cross-platform date command that works on both Linux and macOS
+      const dateCommand = `date -d @${expirationSeconds} 2>/dev/null || date -r ${expirationSeconds} 2>/dev/null || echo \'Unknown expiration time\'`;
        // Escape the *result* of the date command execution for the echo
        awsWhoAmIFunction += '  echo "$(' + dateCommand + ')";\n'; 
       awsWhoAmIFunction += '  echo "";\n';
@@ -555,18 +704,7 @@ echo ""
     fs.writeFileSync(tempScriptPath, scriptContent, { mode: 0o755 });
     console.log('[Main] Created temporary shell script:', tempScriptPath);
 
-    if (platform === 'linux') {
       command = `x-terminal-emulator -e "sh \\"${shellTempScriptPath}\\""`;
-    } else if (platform === 'win32') {
-      let wslScriptPath = tempScriptPath.replace(/\\/g, '/');
-      if (/^[A-Za-z]:/.test(wslScriptPath)) {
-          wslScriptPath = `/mnt/${wslScriptPath[0].toLowerCase()}${wslScriptPath.substring(2)}`;
-      }
-      const quotedWslScriptPath = `"${shellEscape(wslScriptPath)}\"`; // Escape for WSL shell
-      command = `start wsl -e sh ${quotedWslScriptPath}`;
-    } else {
-      throw new Error(`Unsupported platform: ${platform}`);
-    }
 
     console.log('[Main] Running command:', command);
     await execAsync(command);
@@ -580,191 +718,207 @@ echo ""
   }
 });
 
-// Specialized function for handling macOS terminals with proper environment persistence
-async function openMacOSTerminal(env, debugLogPath) {
-  console.log('[Main] Opening macOS terminal with persistent AWS environment');
+// Function to handle Windows terminal opening
+async function openWindowsTerminal(env, debugLogPath) {
+  console.log('[Main] Opening Windows CMD terminal');
   
   try {
-    // Create environment file that will be sourced by the terminal
-    const envFilePath = path.join(os.tmpdir(), `aws-sso-env-${Date.now()}.sh`);
+    // Create batch file for CMD
+    const batchFilePath = path.join(os.tmpdir(), `aws-sso-terminal-${Date.now()}.bat`);
+    console.log('[Main] Creating Windows batch file at:', batchFilePath);
+
+    // Create the batch file content
+    let batchContent = '@echo off\r\n';
+    batchContent += 'cls\r\n';
+    batchContent += 'echo AWS SSO Manager - Terminal Session\r\n';
+    batchContent += 'echo --------------------------------------\r\n';
+    batchContent += `echo Timestamp: %DATE% %TIME%\r\n`;
+    batchContent += 'echo.\r\n';
     
-    // Create the environment file content
-    let envFileContent = `#!/bin/zsh
-# AWS SSO Environment Variables - Created ${new Date().toISOString()}
-# Terminal launched for role ${env.AWS_ROLE_NAME || 'unknown'} in account ${env.AWS_ACCOUNT_ID || 'unknown'}
-# This file will be sourced by your terminal to set up the AWS environment
-
-`;
-
-    // Add all environment variables
+    // Set environment variables
+    batchContent += 'echo Setting up AWS environment variables...\r\n';
     Object.entries(env).forEach(([key, value]) => {
-      // Use single quotes for values with special characters
-      const escapedValue = value.replace(/'/g, "'\\''"); // Escape single quotes for shell
-      envFileContent += `export ${key}='${escapedValue}'\n`;
+      // Special handling for path-like variables to avoid escaping issues
+      if (key === 'PATH' || key === 'Path') {
+        batchContent += `set ${key}=${value}\r\n`;
+      } else {
+        // Properly handle quotes for Windows batch files
+        // Double up quotes inside values to escape them
+        const escapedValue = value.replace(/"/g, '""');
+        batchContent += `set ${key}=${escapedValue}\r\n`;
+      }
     });
     
-    // Add helper function
-    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
-      const accountId = env.AWS_ACCOUNT_ID || 'unknown';
-      const roleName = env.AWS_ROLE_NAME || 'unknown';
+    // Add region variable if exists
       const region = env.AWS_REGION || 'us-east-1';
-      const expiration = env.AWS_EXPIRATION ? parseInt(env.AWS_EXPIRATION, 10) : 0;
+    batchContent += `set AWS_DEFAULT_REGION=${region}\r\n`;
+    
+    // Add AWS identity info function
+    if (env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY) {
+      const accountId = env.AWS_ACCOUNT_ID || 'N/A';
+      const roleName = env.AWS_ROLE_NAME || 'N/A';
+      const expiration = env.AWS_EXPIRATION ? new Date(parseInt(env.AWS_EXPIRATION, 10)).toLocaleString() : 'N/A';
       
-      envFileContent += `
-# Helper function to display current AWS identity
-aws_who_am_i() {
-  echo "--- AWS Identity Info ---"
-  echo "AWS Account: ${accountId}"
-  echo "AWS Role:    ${roleName}"
-  echo "AWS Region:  ${region}"
-  if [ -n "${expiration}" ]; then
-    echo ""
-    echo "Temporary credentials expire at: $(date -r $(( ${expiration} / 1000 )))"
-  fi
-}
-
-# Display AWS identity information on startup
-aws_who_am_i
-echo ""
-echo "Type 'aws_who_am_i' to see AWS identity information again"
-echo ""
-`;
+      batchContent += `\r\n`;
+      batchContent += '@echo off\r\n';
+      batchContent += 'echo.\r\n';
+      batchContent += 'echo --- AWS Identity Info ---\r\n';
+      batchContent += `echo AWS Account: ${accountId}\r\n`;
+      batchContent += `echo AWS Role:    ${roleName}\r\n`;
+      batchContent += `echo AWS Region:  %AWS_DEFAULT_REGION%\r\n`;
+      batchContent += 'echo.\r\n';
+      batchContent += `echo Credentials expire at: ${expiration}\r\n`;
+      batchContent += 'echo.\r\n';
+      
+      // Create a batch function for displaying AWS info
+      batchContent += `\r\n`;
+      batchContent += ':aws_info\r\n';
+      batchContent += '@echo off\r\n';
+      batchContent += 'echo --- AWS Identity Info ---\r\n';
+      batchContent += `echo AWS Account: ${accountId}\r\n`;
+      batchContent += `echo AWS Role:    ${roleName}\r\n`;
+      batchContent += `echo AWS Region:  %AWS_DEFAULT_REGION%\r\n`;
+      batchContent += 'echo.\r\n';
+      batchContent += `echo Credentials expire at: ${expiration}\r\n`;
+      batchContent += 'echo.\r\n';
+      batchContent += 'echo Current AWS Environment Variables:\r\n';
+      batchContent += 'set AWS_\r\n';
+      batchContent += 'goto :eof\r\n';
+      
+      // Add instruction for the user
+      batchContent += '\r\n';
+      batchContent += 'echo Type "call :aws_info" to see AWS identity information again\r\n';
+      batchContent += 'echo.\r\n';
     }
-
-    // Write the environment file
-    fs.writeFileSync(envFilePath, envFileContent, { mode: 0o755 });
-    console.log('[Main] Created AWS environment file:', envFilePath);
     
-    // Escape the path for AppleScript
-    const escapedEnvFilePath = envFilePath.replace(/"/g, '\\"').replace(/'/g, "\\'").replace(/ /g, '\\ ');
+    // Set a custom prompt showing AWS role
+    batchContent += '\r\n';
+    batchContent += 'echo Setting custom AWS prompt...\r\n';
+    if (env.AWS_ROLE_NAME) {
+      batchContent += `prompt $E[32m[AWS: %AWS_ROLE_NAME%]$E[0m $P$G\r\n`;
+    } else {
+      batchContent += `prompt $E[32m[AWS]$E[0m $P$G\r\n`;
+    }
     
-    // Create AppleScript command that sources the environment file upon terminal startup
-    const command = `osascript -e 'tell application "Terminal"
-  do script "source \\"${escapedEnvFilePath}\\"; exec zsh"
-  activate
-end tell'`;
+    // Write log file path for debugging
+    batchContent += `echo Debug log location: ${debugLogPath}\r\n`;
+    batchContent += 'echo.\r\n';
     
-    console.log('[Main] Running AppleScript command to open Terminal');
+    // Write the batch file
+    fs.writeFileSync(batchFilePath, batchContent);
+    console.log('[Main] Batch file created successfully');
+    
+    // Open CMD with the batch file
+    const command = `start cmd.exe /k "${batchFilePath}"`;
+    console.log('[Main] Running command:', command);
     await execAsync(command);
     
-    // Write to debug log
-    fs.appendFileSync(debugLogPath, `
---- MacOS Terminal Launched ---
-Environment file: ${envFilePath}
-Command: ${command}
-`);
-    
+    fs.appendFileSync(debugLogPath, `\n--- Windows CMD Terminal Launched ---\nBatch file: ${batchFilePath}\nCommand: ${command}\n`);
     return { success: true };
   } catch (error) {
-    console.error('[Main] Error opening macOS terminal:', error);
-    fs.appendFileSync(debugLogPath, `\n--- ERROR IN MAIN PROCESS (MacOS) --- \n ${error.message} \n ${error.stack} \n`);
-    return { success: false, error: error.message || 'Failed to open macOS terminal' };
+    console.error('[Main] Error opening Windows terminal:', error);
+    fs.appendFileSync(debugLogPath, `\n--- ERROR IN MAIN PROCESS (Windows) ---\n${error.message}\n${error.stack}\n`);
+    return { success: false, error: error.message || 'Failed to open Windows terminal' };
   }
 }
 
-function createWindow() {
-  const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false
-    }
+// Only set up IPC handlers when in Electron context
+if (isElectronApp && ipcMain) {
+  // IPC handlers for settings
+  ipcMain.handle('settings:get', async (_, key) => {
+    const settings = getSettings();
+    return settings[key];
   });
 
-  // Load the app
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Running in development mode, loading from localhost');
-    mainWindow.loadURL('http://localhost:8084');
-    mainWindow.webContents.openDevTools();
-  } else {
-    // In production mode, load from the built files
-    console.log('Running in production mode');
-    console.log('App path:', app.getAppPath());
-    console.log('Current directory:', __dirname);
-    console.log('Resource path:', process.resourcesPath);
+  ipcMain.handle('settings:set', async (_, key, value) => {
+    const settings = getSettings();
+    settings[key] = value;
+    return { success: saveSettings(settings) };
+  });
+
+  ipcMain.handle('settings:get-all', async () => {
+    return getSettings();
+  });
+
+  ipcMain.handle('settings:set-all', async (_, newSettings) => {
+    const settings = getSettings();
     
-    // When packaged, index.html should be in the dist directory
-    let indexPath;
+    // Update all provided settings
+    Object.assign(settings, newSettings);
     
-    if (app.isPackaged) {
-      // In packaged app, load from the resources/dist directory
-      indexPath = path.join(process.resourcesPath, 'dist', 'index.html');
-      console.log('Loading packaged app from:', indexPath);
-    } else {
-      // In development build, check multiple locations
-      const possiblePaths = [
-        path.join(__dirname, 'dist', 'index.html'),
-        path.join(process.cwd(), 'dist', 'index.html'),
-        path.join(app.getAppPath(), 'dist', 'index.html')
-      ];
+    return { success: saveSettings(settings) };
+  });
 
-      for (const testPath of possiblePaths) {
-        console.log('Checking path:', testPath);
-        if (fs.existsSync(testPath)) {
-          indexPath = testPath;
-          console.log('Found index.html at:', indexPath);
-          break;
-        }
-      }
+  // Session management IPC handlers
+  ipcMain.handle('session:check', async () => {
+    return { 
+      valid: hasValidSession(),
+      session: getSession()
+    };
+  });
+
+  ipcMain.handle('session:clear', async () => {
+    return { success: clearSession() };
+  });
+
+  // Add store handlers
+  ipcMain.handle('store:get', async (_, key) => {
+    console.log(`[Main] Getting store value for key: ${key}`);
+    const settings = getSettings();
+    return settings[key] || null;
+  });
+
+  ipcMain.handle('store:set', async (_, key, value) => {
+    console.log(`[Main] Setting store value for key: ${key}`);
+    const settings = getSettings();
+    settings[key] = value;
+    return saveSettings(settings);
+  });
+
+  ipcMain.handle('store:delete', async (_, key) => {
+    console.log(`[Main] Deleting store value for key: ${key}`);
+    const settings = getSettings();
+    if (key in settings) {
+      delete settings[key];
+      return saveSettings(settings);
     }
+    return true;
+  });
 
-    if (!indexPath || !fs.existsSync(indexPath)) {
-      console.error('Could not find index.html');
-      // Load error page from same directory as main.js
-      const errorPath = path.join(__dirname, 'error.html');
-      console.log('Loading error page from:', errorPath);
-      mainWindow.loadFile(errorPath);
-      return;
-    }
+  ipcMain.handle('store:clear', async () => {
+    console.log(`[Main] Clearing all store values`);
+    return saveSettings({});
+  });
 
+  // Shell operations handler
+  ipcMain.handle('shell:open-external', async (_, url) => {
+    console.log(`[Main] Opening external URL: ${url}`);
+    return shell.openExternal(url);
+  });
+
+  // Terminal command handler
+  ipcMain.handle('aws-sso:run-terminal-command', async (_, options) => {
     try {
-      console.log('Loading from:', indexPath);
-      mainWindow.loadFile(indexPath);
+      console.log(`[Main] Running terminal command: ${options.command}`);
+      const { command, env = {} } = options;
+      
+      // Combine with current environment
+      const commandEnv = { ...process.env, ...env };
+      
+      const { stdout, stderr } = await execAsync(command, {
+        env: commandEnv,
+        shell: true
+      });
+      
+      return { stdout, stderr };
     } catch (error) {
-      console.error('Error loading index.html:', error);
-      const errorPath = path.join(__dirname, 'error.html');
-      console.log('Loading error page from:', errorPath);
-      mainWindow.loadFile(errorPath);
+      console.error(`[Main] Terminal command error:`, error);
+      return { 
+        stdout: '', 
+        stderr: error.message || 'Unknown error executing command'
+      };
     }
-  }
-  
-  // Set Content Security Policy
-  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [
-          "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-          "style-src 'self' 'unsafe-inline' data:",
-          "img-src 'self' data: https:",
-          "connect-src 'self' https://*.amazonaws.com https://*.awsapps.com",
-          "font-src 'self' data:",
-          "worker-src 'self' blob:",
-          "frame-src 'self'",
-        ].join('; ')
-      }
-    });
   });
-
-  // Handle external URLs
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  // Log any load failures
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('Failed to load:', errorCode, errorDescription);
-    // Try loading error page on load failure
-    const errorPath = path.join(__dirname, 'error.html');
-    console.log('Loading error page from:', errorPath);
-    mainWindow.loadFile(errorPath);
-  });
-}
 
 // IPC Handlers
 ipcMain.handle('aws-sso:init', async (_, { region }) => {
@@ -1297,24 +1451,44 @@ ipcMain.handle('get-app-info', () => {
 
 // IPC handler for getting app version
 ipcMain.handle('app:version', () => {
-  return app.getVersion();
-});
-
-app.whenReady().then(() => {
-  createWindow();
-
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    return electronApp.getVersion();
   });
+}
+
+// Initialize app when in Electron mode
+if (isElectronApp) {
+  electronApp.whenReady().then(() => {
+    try {
+      console.log('[Main] Creating application window...');
+  createWindow();
+      console.log('[Main] Window created successfully');
+
+      electronApp.on('activate', function () {
+        if (BrowserWindow.getAllWindows().length === 0) {
+          console.log('[Main] No windows found, creating new window');
+          createWindow();
+        }
+      });
+    } catch (error) {
+      console.error('[Main] Error creating window:', error);
+      console.error('[Main] Error details:', error.message);
+      console.error('[Main] Error stack:', error.stack);
+      throw error; // Re-throw to be caught by the catch below
+    }
 }).catch(err => {
-  console.error('Error during app initialization:', err);
+    console.error('[Main] Error during app initialization:', err);
+    console.error('[Main] Error message:', err.message);
+    console.error('[Main] Error stack:', err.stack);
 });
 
 // Global error handler
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+    console.error('[Main] Uncaught Exception:', error);
+    console.error('[Main] Error message:', error.message);
+    console.error('[Main] Error stack:', error.stack);
 });
 
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit();
+  electronApp.on('window-all-closed', function () {
+    if (process.platform !== 'darwin') electronApp.quit();
 }); 
+} 

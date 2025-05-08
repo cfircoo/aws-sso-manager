@@ -2,24 +2,54 @@
 // It has the same sandbox as a Chrome extension.
 const { contextBridge, ipcRenderer } = require('electron');
 
+console.log('[Preload] Initializing preload script');
+
+// Add diagnostics to track renderer process startup
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('[Preload] DOM content loaded');
+});
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronStore', {
-  get: (key) => ipcRenderer.invoke('store:get', key),
-  set: (key, value) => ipcRenderer.invoke('store:set', key, value),
-  delete: (key) => ipcRenderer.invoke('store:delete', key),
-  clear: () => ipcRenderer.invoke('store:clear')
+  get: async (key) => {
+    console.log(`[Preload] Store: Getting ${key}`);
+    const result = await ipcRenderer.invoke('store:get', key);
+    console.log(`[Preload] Store: Got ${key}`, result);
+    return result;
+  },
+  set: (key, value) => {
+    console.log(`[Preload] Store: Setting ${key}`, value);
+    return ipcRenderer.invoke('store:set', key, value);
+  },
+  delete: (key) => {
+    console.log(`[Preload] Store: Deleting ${key}`);
+    return ipcRenderer.invoke('store:delete', key);
+  },
+  clear: () => {
+    console.log(`[Preload] Store: Clearing store`);
+    return ipcRenderer.invoke('store:clear');
+  }
 });
 
 contextBridge.exposeInMainWorld('awsSso', {
   // Initialize AWS SSO with a region
-  init: (region) => ipcRenderer.invoke('aws-sso:init', { region }),
+  init: (region) => {
+    console.log(`[Preload] AWS SSO: Initializing with region ${region}`);
+    return ipcRenderer.invoke('aws-sso:init', { region });
+  },
   
   // Start the SSO login process
-  startLogin: (startUrl) => ipcRenderer.invoke('aws-sso:start-login', { startUrl }),
+  startLogin: (startUrl) => {
+    console.log(`[Preload] AWS SSO: Starting login with URL ${startUrl}`);
+    return ipcRenderer.invoke('aws-sso:start-login', { startUrl });
+  },
   
   // Poll for token during device authorization
-  pollToken: (deviceCode) => ipcRenderer.invoke('aws-sso:poll-token', { deviceCode }),
+  pollToken: (deviceCode) => {
+    console.log(`[Preload] AWS SSO: Polling token for device code ${deviceCode}`);
+    return ipcRenderer.invoke('aws-sso:poll-token', { deviceCode });
+  },
   
   // List AWS accounts
   listAccounts: (accessToken) => ipcRenderer.invoke('aws-sso:list-accounts', { accessToken }),

@@ -352,29 +352,9 @@ const AccountItem = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onOpenTerminal(account.accountId, role.roleName);
-                      }}
-                      title="Open Terminal"
-                      style={{
-                        backgroundColor: '#7e57c2',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Terminal size={16} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
                         onOpenTerminal(account.accountId, role.roleName, true);
                       }}
-                      title="Open System Terminal (zsh)"
+                      title="Open System Terminal"
                       style={{
                         backgroundColor: '#2e7d32',
                         color: 'white',

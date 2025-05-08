@@ -2,10 +2,6 @@
 
 A modern desktop application built with Electron and React for managing AWS SSO sessions and role switching across multiple AWS accounts.
 
-![AWS SSO Manager Screenshot](public/screenshot.png)
-
-![AWS SSO Manager Interface](@Screenshot.png)
-
 ## Features
 
 - 🔐 Easy AWS SSO login and session management
@@ -20,6 +16,17 @@ A modern desktop application built with Electron and React for managing AWS SSO 
 - 🌐 Direct AWS Console access for any role with one click
 - 📊 Visual account counter to track available AWS accounts
 - ⏳ Loading indicators for better user experience
+
+## Screenshots
+
+### All Accounts View
+![All Accounts View](public/all_accounts.png)
+
+### Favorites
+![Favorites View](public/favorite.png)
+
+### Quick Access
+![Quick Access View](public/quick_access.png)
 
 ## Installation
 
@@ -45,6 +52,11 @@ A modern desktop application built with Electron and React for managing AWS SSO 
 
 ### Windows
 
+#### Using the installer:
+1. Download the latest release from the [Releases](https://github.com/cfircoo/aws-sso-manager/releases) page
+2. Run the downloaded `.exe` file
+3. Follow the installation prompts
+4. Open the app from your Start menu
 
 #### Using the install script:
 1. Clone the repository:

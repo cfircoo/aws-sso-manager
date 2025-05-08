@@ -53,11 +53,37 @@ const store = new Store<StoreSchema>({
     codeArtifactRole: '',
     defaultProfile: null,
     favorites: []
-  }
+  },
+  // Enable better error handling and logging
+  clearInvalidConfig: true,
+  // Add a name for the store to ensure consistent file naming across platforms
+  name: 'aws-sso-manager-config'
 });
 
-// Log store path
+// Log store path and platform information
+console.log(`[Main] Platform: ${process.platform}`);
 console.log(`[Main] Electron store initialized. Path: ${store.path}`);
+
+// Try to access the store path to ensure it's created
+try {
+  // Check if store directory exists, if not create it
+  const storeDir = path.dirname(store.path);
+  if (!fs.existsSync(storeDir)) {
+    console.log(`[Main] Creating store directory: ${storeDir}`);
+    fs.mkdirSync(storeDir, { recursive: true });
+  }
+  
+  // Write initial settings to ensure the file is created
+  if (!store.has('initialized')) {
+    console.log('[Main] Initializing store with default settings');
+    store.set('initialized', true);
+    store.set('ssoRegion', '');  // Ensure ssoRegion exists, even if empty
+  } else {
+    console.log('[Main] Store already initialized');
+  }
+} catch (error) {
+  console.error('[Main] Error initializing store:', error);
+}
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 try {
@@ -598,23 +624,62 @@ ipcMain.handle('aws-sso:get-default-profile', async () => {
 
 // IPC Handlers for store operations
 ipcMain.handle('store:get', async (_, key) => {
-  const value = store.get(key);
-  if (key === 'favorites') {
-    console.log(`[Main] Retrieved favorites from store:`, value);
+  try {
+    // Log store operation with platform info for debugging
+    console.log(`[Main] [${process.platform}] Getting store value for key: ${key}`);
+    
+    const value = store.get(key);
+    
+    // If getting a critical setting that's empty but should exist, ensure it's initialized
+    if (value === undefined && ['ssoRegion', 'ssoUrl'].includes(key)) {
+      console.log(`[Main] Initializing missing key: ${key}`);
+      store.set(key, '');
+      return '';
+    }
+    
+    if (key === 'favorites') {
+      console.log(`[Main] Retrieved favorites from store:`, value);
+    }
+    
+    return value;
+  } catch (error) {
+    console.error(`[Main] Error getting store value for key ${key}:`, error);
+    // Return appropriate defaults based on the key
+    if (key === 'favorites') return [];
+    if (key === 'ssoRegion' || key === 'ssoUrl') return '';
+    if (key === 'defaultProfile') return null;
+    return undefined;
   }
-  return value;
 });
 
 ipcMain.handle('store:set', async (_, key, value) => {
-  if (key === 'favorites') {
-    console.log(`[Main] Saving favorites to store:`, value);
-  }
-  store.set(key, value);
-  
-  // For favorites, verify they were saved
-  if (key === 'favorites') {
-    const savedValue = store.get(key);
-    console.log(`[Main] Verified favorites saved:`, savedValue);
+  try {
+    // Log store operation with platform info for debugging
+    console.log(`[Main] [${process.platform}] Setting store value for key: ${key}`);
+    
+    if (key === 'favorites') {
+      console.log(`[Main] Saving favorites to store:`, value);
+    }
+    
+    // Ensure the store directory exists before writing
+    const storeDir = path.dirname(store.path);
+    if (!fs.existsSync(storeDir)) {
+      console.log(`[Main] Creating store directory: ${storeDir}`);
+      fs.mkdirSync(storeDir, { recursive: true });
+    }
+    
+    store.set(key, value);
+    
+    // For favorites, verify they were saved
+    if (key === 'favorites') {
+      const savedValue = store.get(key);
+      console.log(`[Main] Verified favorites saved:`, savedValue);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`[Main] Error setting store value for key ${key}:`, error);
+    return false;
   }
 });
 
@@ -696,6 +761,34 @@ ipcMain.handle('aws-sso:open-terminal', async (_, { env = {} }: { env?: Record<s
 
 // Initialize session on app ready
 app.whenReady().then(() => {
+  // Special handling for Windows platform
+  if (process.platform === 'win32') {
+    console.log('[Main] Windows platform detected, ensuring store directory exists');
+    try {
+      // Make sure the store directory exists
+      const storeDir = path.dirname(store.path);
+      if (!fs.existsSync(storeDir)) {
+        fs.mkdirSync(storeDir, { recursive: true });
+        console.log(`[Main] Created store directory: ${storeDir}`);
+      }
+      
+      // Initialize critical settings if they don't exist
+      if (!store.has('ssoRegion')) {
+        console.log('[Main] Initializing ssoRegion in store');
+        store.set('ssoRegion', '');
+      }
+      
+      if (!store.has('ssoUrl')) {
+        console.log('[Main] Initializing ssoUrl in store');
+        store.set('ssoUrl', '');
+      }
+      
+      console.log('[Main] Windows store initialization complete');
+    } catch (error) {
+      console.error('[Main] Error initializing Windows store:', error);
+    }
+  }
+  
   restoreSession();
   createWindow();
   

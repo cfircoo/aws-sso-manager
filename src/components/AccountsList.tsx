@@ -374,25 +374,8 @@ const AccountsList = ({
                       <ExternalLink size={16} />
                     </button>
                     <button
-                      onClick={() => onOpenTerminal(role.accountId, role.roleName, false)}
-                      title="Open Built-in Terminal"
-                      style={{
-                        backgroundColor: '#7e57c2',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Terminal size={16} />
-                    </button>
-                    <button
                       onClick={() => onOpenTerminal(role.accountId, role.roleName, true)}
-                      title="Open External Terminal"
+                      title="Open Terminal"
                       style={{
                         backgroundColor: '#2e7d32',
                         color: 'white',

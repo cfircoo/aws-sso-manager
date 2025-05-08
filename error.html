@@ -36,6 +36,29 @@
             color: #666;
         }
     </style>
+    <script>
+        // This function loads paths from our utility if possible
+        function getLogPath() {
+            try {
+                // Try to load the paths module
+                const paths = require('./src/lib/paths');
+                return paths.getLogsDirectory();
+            } catch (e) {
+                // Fall back to hard-coded paths if module can't be loaded
+                const platform = process.platform;
+                const os = require('os');
+                const path = require('path');
+                
+                if (platform === 'win32') {
+                    return path.join(os.homedir(), 'AppData', 'Roaming', 'aws-sso-manager', 'logs');
+                } else if (platform === 'darwin') {
+                    return path.join(os.homedir(), 'Library', 'aws-sso-manager', 'logs');
+                } else {
+                    return path.join(os.homedir(), '.config', 'aws-sso-manager', 'logs');
+                }
+            }
+        }
+    </script>
 </head>
 <body>
     <div class="error-container">
@@ -46,9 +69,24 @@
         <div class="help-text">
             Please try the following:
             <ul style="text-align: left;">
-                <li>Make sure you've installed the application properly by dragging it to the Applications folder</li>
+                <li>Make sure you've installed the application properly</li>
                 <li>Try restarting the application</li>
-                <li>Check the logs at: ~/Library/aws-sso-manager/logs/</li>
+                <li>Check the logs at: 
+                  <script>
+                    // Show platform-specific log path
+                    const logPath = (process.platform === 'win32') 
+                      ? '%APPDATA%\\aws-sso-manager\\logs\\' 
+                      : (process.platform === 'darwin')
+                        ? '~/Library/aws-sso-manager/logs/'
+                        : '~/.config/aws-sso-manager/logs/';
+                    document.write(`<span id="log-path">${logPath}</span>`);
+                  </script>
+                  <noscript>
+                    ~/Library/aws-sso-manager/logs/ (macOS) <br>
+                    %APPDATA%\aws-sso-manager\logs\ (Windows) <br>
+                    ~/.config/aws-sso-manager/logs/ (Linux)
+                  </noscript>
+                </li>
             </ul>
         </div>
     </div>
