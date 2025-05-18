@@ -3,6 +3,7 @@ import { Star, Copy, Terminal, Check, Bookmark, ExternalLink } from 'lucide-reac
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
+import { getSsoPortalUrl } from './common/SsoPortalUrl';
 
 interface AccountItemProps {
   account: AwsAccount;
@@ -150,9 +151,8 @@ const AccountItem = ({
     try {
       if (!accessToken) throw new Error('No access token');
       
-      // Use the AWS SSO portal URL format that directly specifies account and role
-      // This format will properly handle the authentication and role assumption
-      const ssoPortalUrl = `https://d-90676c94d8.awsapps.com/start/#/console?account_id=${accountId}&role_name=${roleName}&referrer=accessPortal`;
+      // Use the common SSO portal URL function
+      const ssoPortalUrl = getSsoPortalUrl(accountId, roleName);
       
       // Open AWS Console in a new tab
       window.open(ssoPortalUrl, '_blank');
@@ -352,9 +352,29 @@ const AccountItem = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        onOpenTerminal(account.accountId, role.roleName);
+                      }}
+                      title="Open Terminal"
+                      style={{
+                        backgroundColor: '#7e57c2',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <Terminal size={16} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         onOpenTerminal(account.accountId, role.roleName, true);
                       }}
-                      title="Open System Terminal"
+                      title="Open System Terminal (zsh)"
                       style={{
                         backgroundColor: '#2e7d32',
                         color: 'white',

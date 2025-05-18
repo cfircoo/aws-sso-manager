@@ -4,3 +4,5 @@ dist/
 release/
 
 *.Identifier
+
+node_modules/
