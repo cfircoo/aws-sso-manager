@@ -93,7 +93,9 @@ contextBridge.exposeInMainWorld('electronShell', {
 // App info operations
 contextBridge.exposeInMainWorld('electronApp', {
   getAppInfo: () => ipcRenderer.invoke('app:info'),
-  getVersion: () => ipcRenderer.invoke('app:version')
+  getVersion: () => ipcRenderer.invoke('app:version'),
+  openSettingsFile: () => ipcRenderer.invoke('app:open-settings-file'),
+  openLogsFile: () => ipcRenderer.invoke('app:open-logs-file'),
 });
 
 // Set versions when DOM content is loaded

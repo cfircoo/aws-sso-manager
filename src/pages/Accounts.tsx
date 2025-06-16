@@ -126,6 +126,20 @@ const Accounts = () => {
     }
   }, [isAuthenticated, accessToken, navigate, initialAuthCheckDone]);
 
+  // Handle authentication errors from queries
+  useEffect(() => {
+    // Check for authentication errors in the accounts query
+    if (queries?.accounts?.error) {
+      const error = queries.accounts.error as any;
+      if (error?.name === 'AuthenticationExpired' ||
+          error?.message?.includes('UnauthorizedException') ||
+          error?.message?.includes('Session token not found or invalid')) {
+        console.log('Accounts: Authentication error detected from query, redirecting to login');
+        navigate('/login');
+      }
+    }
+  }, [queries?.accounts?.error, navigate]);
+
   // Add periodic session validity check
   useEffect(() => {
     // Only set up the interval if authenticated

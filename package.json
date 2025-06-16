@@ -1,6 +1,6 @@
 {
   "name": "aws-sso-manager",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "AWS SSO Manager for easy role switching using React and Electron",
   "main": "main.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "dev": "concurrently \"npm run dev:vite\" \"wait-on http://localhost:8084 && npm run dev:electron\"",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "electron .",
+    "start": "rm -rf dist && npm run build && electron --inspect=5858 .",
+    "start:debug": "rm -rf dist && npm run build && electron --inspect-brk=5858 .",
     "build-mac": "npm run build && electron-builder --mac",
     "build-win": "npm run build && electron-builder --win",
     "create-dmg": "create-dmg --no-code-sign --dmg-title=\"aws-sso-manager\" --out=dist/ dist/mac-arm64/aws-sso-manager.app",
@@ -20,7 +21,7 @@
     "Electron",
     "mas"
   ],
-  "author": "YOUR NAME",
+  "author": "Cfir Carmeli",
   "license": "CC0-1.0",
   "dependencies": {
     "@aws-sdk/client-ecr": "^3.777.0",

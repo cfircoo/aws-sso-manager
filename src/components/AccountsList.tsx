@@ -4,7 +4,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
 import AccountItem from './AccountItem';
 import { Bookmark, Terminal, Copy, Check, ExternalLink } from 'lucide-react';
-import { getSsoPortalUrl } from './common/SsoPortalUrl';
+import { useSsoPortalUrl } from './common/SsoPortalUrl';
 
 interface AccountsListProps {
   accounts: AwsAccount[];
@@ -36,6 +36,9 @@ const AccountsList = ({
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<any>(null);
   const [isLoadingCreds, setIsLoadingCreds] = useState(false);
+
+  // Get the SSO URL generator function
+  const generateSsoPortalUrl = useSsoPortalUrl();
 
   // Add handleCopyCredentials function
   const handleCopyCredentials = async (accountId: string, roleName: string) => {
@@ -107,8 +110,8 @@ const AccountsList = ({
     try {
       if (!accessToken) throw new Error('No access token');
       
-      // Use the common SSO portal URL function
-      const ssoPortalUrl = getSsoPortalUrl(accountId, roleName);
+      // Use the SSO portal URL generator function
+      const ssoPortalUrl = generateSsoPortalUrl(accountId, roleName);
       
       // Open AWS Console in a new tab
       window.open(ssoPortalUrl, '_blank');
