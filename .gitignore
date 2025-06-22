@@ -6,3 +6,5 @@ release/
 *.Identifier
 
 node_modules/
+
+*/launch.json
