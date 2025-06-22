@@ -27,6 +27,7 @@ export interface SsoContextType {
   ssoService: SsoService;
   sessionTimeLeft: number | null;
   refreshSessionTime: () => Promise<number>;
+  handleAuthExpiration: () => Promise<void>;
   queries: {
     login: UseMutationResult<LoginResponse, Error, void>;
     token: UseQueryResult<TokenResponse, Error>;
@@ -768,6 +769,12 @@ export const SsoProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isAuthenticated, accessToken]);
 
+  const handleAuthExpiration = async () => {
+    // Implement the logic to handle authentication expiration
+    console.log('SsoContext: Handling authentication expiration');
+    await logout();
+  };
+
   const contextValue = {
     accessToken,
     setAccessToken: updateAccessToken,
@@ -777,6 +784,7 @@ export const SsoProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ssoService,
     sessionTimeLeft,
     refreshSessionTime,
+    handleAuthExpiration,
     queries,
     isInitialized,
     ecrStatus,

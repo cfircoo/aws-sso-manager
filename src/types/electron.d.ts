@@ -14,14 +14,10 @@ interface ElectronShell {
 }
 
 interface ElectronApp {
-  getAppInfo: () => Promise<{
-    versions: {
-      node: string;
-      chrome: string;
-      electron: string;
-    }
-  }>;
   getVersion: () => Promise<string>;
+  getAppInfo: () => Promise<any>;
+  openSettingsFile: () => Promise<{ success: boolean; error?: string }>;
+  openLogsFile: () => Promise<{ success: boolean; error?: string }>;
 }
 
 interface AwsSsoApi {
@@ -73,9 +69,9 @@ interface AwsSsoApi {
 
 declare global {
   interface Window {
+    electronApp: ElectronApp;
     electronStore: ElectronStore;
     electronShell: ElectronShell;
-    electronApp: ElectronApp;
     awsSso: AwsSsoApi;
   }
 }

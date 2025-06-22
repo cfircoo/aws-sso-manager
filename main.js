@@ -48,8 +48,9 @@ if (!fs.existsSync(userAppPath)) {
 const getSettings = () => {
   try {
     if (fs.existsSync(settingsFilePath)) {
-      console.log('Loading settings from file:', settingsFilePath);
-      return JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
+      // Only log once when loading settings file
+      const settings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
+      return settings;
     }
   } catch (error) {
     console.error('Error reading settings file:', error);
@@ -70,7 +71,6 @@ const getSettings = () => {
 
 const saveSettings = (settings) => {
   try {
-    console.log('Saving settings to file:', settingsFilePath);
     fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
     return true;
   } catch (error) {
@@ -861,33 +861,40 @@ if (isElectronApp && ipcMain) {
     return { success: clearSession() };
   });
 
-  // Add store handlers
+  // Add a cached settings object
+  let cachedSettings = null;
+
+  // Modify the store handlers
   ipcMain.handle('store:get', async (_, key) => {
-    console.log(`[Main] Getting store value for key: ${key}`);
-    const settings = getSettings();
-    return settings[key] || null;
+    if (!cachedSettings) {
+      console.log('[Main] Loading settings from file');
+      cachedSettings = getSettings();
+    }
+    return cachedSettings[key] || null;
   });
 
   ipcMain.handle('store:set', async (_, key, value) => {
-    console.log(`[Main] Setting store value for key: ${key}`);
-    const settings = getSettings();
-    settings[key] = value;
-    return saveSettings(settings);
+    if (!cachedSettings) {
+      cachedSettings = getSettings();
+    }
+    cachedSettings[key] = value;
+    return saveSettings(cachedSettings);
   });
 
   ipcMain.handle('store:delete', async (_, key) => {
-    console.log(`[Main] Deleting store value for key: ${key}`);
-    const settings = getSettings();
-    if (key in settings) {
-      delete settings[key];
-      return saveSettings(settings);
+    if (!cachedSettings) {
+      cachedSettings = getSettings();
+    }
+    if (key in cachedSettings) {
+      delete cachedSettings[key];
+      return saveSettings(cachedSettings);
     }
     return true;
   });
 
   ipcMain.handle('store:clear', async () => {
-    console.log(`[Main] Clearing all store values`);
-    return saveSettings({});
+    cachedSettings = {};
+    return saveSettings(cachedSettings);
   });
 
   // Shell operations handler
@@ -1453,6 +1460,31 @@ ipcMain.handle('get-app-info', () => {
 ipcMain.handle('app:version', () => {
     return electronApp.getVersion();
   });
+
+// Add these to the IPC handlers section
+ipcMain.handle('app:open-settings-file', async () => {
+  try {
+    const settingsPath = paths.getSettingsFilePath({ app: electronApp });
+    console.log('[Main] Opening settings file:', settingsPath);
+    await shell.openPath(settingsPath);
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Error opening settings file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('app:open-logs-file', async () => {
+  try {
+    const logsDir = paths.getLogsDirectory({ app: electronApp });
+    console.log('[Main] Opening logs directory:', logsDir);
+    await shell.openPath(logsDir);
+    return { success: true };
+  } catch (error) {
+    console.error('[Main] Error opening logs directory:', error);
+    return { success: false, error: error.message };
+  }
+});
 }
 
 // Initialize app when in Electron mode

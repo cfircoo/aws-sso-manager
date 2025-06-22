@@ -137,12 +137,6 @@ AWS_SESSION_TOKEN=${credentials.sessionToken}`;
                       {isDefaultRole ? '✓ Default' : 'Set as Default'}
                     </button>
                     <button
-                      onClick={() => onOpenTerminal(account.accountId, role.roleName)}
-                      className="px-3 py-1 bg-purple-500 text-white rounded text-sm hover:bg-purple-600"
-                    >
-                      Open Terminal
-                    </button>
-                    <button
                       onClick={() => onOpenTerminal(account.accountId, role.roleName, true)}
                       className="px-3 py-1 bg-green-700 text-white rounded text-sm hover:bg-green-800"
                     >

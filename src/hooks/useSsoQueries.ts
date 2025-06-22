@@ -17,41 +17,32 @@ export const ssoKeys = {
 };
 
 export function useSsoQueries(ssoService: SsoService, isInitialized: boolean, isAuthenticated: boolean, accessToken: string | null) {
-  // Get electron functions
-  const electron = useElectron();
-  
-  // Load settings from local storage or store
   const getAppSettings = async () => {
-    try {
-      // Try to get from electron store first
-      return await electron.getAppSettings();
-    } catch (e) {
-      console.error('Failed to load settings from electron store:', e);
-      // Fall back to localStorage if electron fails
-      const savedSettings = localStorage.getItem('appSettings');
-      if (savedSettings) {
-        try {
-          return JSON.parse(savedSettings);
-        } catch (e) {
-          console.error('Failed to parse saved settings:', e);
-        }
-      }
-      
-      // Default settings if all else fails
-      return {
-        ssoUrl: '',
-        ssoRegion: 'us-east-1',
-        ecrRepo: '',
-        ecrRole: '',
-        codeArtifactAccount: '',
-        codeArtifactRole: '',
-        codeArtifactDomain: '',
-        codeArtifactRepo: ''
-      };
+    // Access Electron store functions through the global window objects
+    return {
+      ssoUrl: await window.electronStore.get<string>('ssoUrl') || '',
+      ssoRegion: await window.electronStore.get<string>('ssoRegion') || '',
+      ecrRepo: await window.electronStore.get<string>('ecrRepo') || '',
+      ecrRole: await window.electronStore.get<string>('ecrRole') || '',
+      codeArtifactAccount: await window.electronStore.get<string>('codeArtifactAccount') || '',
+      codeArtifactRole: await window.electronStore.get<string>('codeArtifactRole') || '',
+      codeArtifactDomain: await window.electronStore.get<string>('codeArtifactDomain') || '',
+      codeArtifactRepo: await window.electronStore.get<string>('codeArtifactRepo') || ''
+    };
+  };
+
+  // Get electron functions
+  const electron = {
+    getRoleCredentials: window.awsSso?.getRoleCredentials,
+    runTerminalCommand: window.awsSso?.runTerminalCommand,
+    clearSession: async () => {
+      await window.electronStore.set('awsSsoAccessToken', null);
+      await window.electronStore.set('awsSsoTokenExpiration', null);
+      await window.electronStore.set('sessionStartTime', null);
     }
   };
 
-  const login = useMutation<LoginResponse, Error>({
+  const login = useMutation<LoginResponse, Error, void>({
     mutationFn: () => ssoService.login(),
     retry: 1,
     retryDelay: 1000
@@ -67,13 +58,57 @@ export function useSsoQueries(ssoService: SsoService, isInitialized: boolean, is
 
   const accounts = useQuery<AwsAccount[], Error>({
     queryKey: ['accounts', accessToken],
-    queryFn: () => ssoService.listAccounts(accessToken!),
-    enabled: isInitialized && !!accessToken,
+    queryFn: async () => {
+      if (!accessToken) {
+        throw new Error('No access token available');
+      }
+      
+      try {
+        return await ssoService.listAccounts(accessToken);
+      } catch (error: any) {
+        // Check if this is an authentication error
+        if (error?.message?.includes('UnauthorizedException') || 
+            error?.message?.includes('Session token not found or invalid') ||
+            error?.message?.includes('InvalidToken') ||
+            error?.message?.includes('TokenRefreshRequired')) {
+          
+          console.log('[useSsoQueries] Session token expired, clearing authentication state');
+          
+          // Clear the stored session using the electron context
+          try {
+            await electron.clearSession();
+          } catch (clearError) {
+            console.error('Error clearing session:', clearError);
+          }
+          
+          // Clear localStorage as well
+          localStorage.removeItem('sso_access_token');
+          
+          // Throw a special error that can be handled by the auth context
+          const authError = new Error('Authentication session expired');
+          authError.name = 'AuthenticationExpired';
+          throw authError;
+        }
+        
+        // Re-throw other errors
+        throw error;
+      }
+    },
+    enabled: isInitialized && isAuthenticated && !!accessToken,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
     refetchInterval: 1000 * 60 * 5, // Auto-refresh every 5 minutes
     refetchIntervalInBackground: true, // Continue refreshing even when tab is in background
-    retry: 2,
+    retry: (failureCount, error: any) => {
+      // Don't retry authentication errors
+      if (error?.name === 'AuthenticationExpired' || 
+          error?.message?.includes('UnauthorizedException') ||
+          error?.message?.includes('Session token not found or invalid')) {
+        return false;
+      }
+      // Retry other errors up to 2 times
+      return failureCount < 2;
+    },
     retryDelay: (attemptIndex) => Math.min(1000 * Math.pow(2, attemptIndex), 10000)
   });
 

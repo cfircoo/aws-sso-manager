@@ -3,7 +3,7 @@ import { Star, Copy, Terminal, Check, Bookmark, ExternalLink } from 'lucide-reac
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
-import { getSsoPortalUrl } from './common/SsoPortalUrl';
+import { useSsoPortalUrl } from './common/SsoPortalUrl';
 
 interface AccountItemProps {
   account: AwsAccount;
@@ -44,8 +44,8 @@ const AccountItem = ({
   const [isLoadingCreds, setIsLoadingCreds] = useState(false);
   const { isQuickAccess, toggleQuickAccess } = useQuickAccessRoles();
   
-  // Check if window.awsSso is available - correctly as a boolean
-  const awsSsoAvailable = typeof window !== 'undefined' && !!window.awsSso;
+  // Get the SSO URL generator
+  const getSsoPortalUrl = useSsoPortalUrl();
   
   // Update the query with correct typing
   const { data, isLoading, error } = useQuery<RolesResponse>({
@@ -63,7 +63,7 @@ const AccountItem = ({
         throw err;
       }
     },
-    enabled: isExpanded && !!accessToken && awsSsoAvailable,
+    enabled: isExpanded && !!accessToken && typeof window !== 'undefined' && !!window.awsSso,
     staleTime: 5 * 60 * 1000,
     retry: 3,
     retryDelay: 5000,
@@ -151,8 +151,16 @@ const AccountItem = ({
     try {
       if (!accessToken) throw new Error('No access token');
       
-      // Use the common SSO portal URL function
+      // Get the SSO portal URL
       const ssoPortalUrl = getSsoPortalUrl(accountId, roleName);
+      
+      // Debug log the URL before opening
+      console.log('Opening AWS Console with URL:', {
+        url: ssoPortalUrl,
+        accountId,
+        roleName,
+        timestamp: new Date().toISOString()
+      });
       
       // Open AWS Console in a new tab
       window.open(ssoPortalUrl, '_blank');
@@ -348,26 +356,6 @@ const AccountItem = ({
                       }}
                     >
                       <ExternalLink size={16} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenTerminal(account.accountId, role.roleName);
-                      }}
-                      title="Open Terminal"
-                      style={{
-                        backgroundColor: '#7e57c2',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Terminal size={16} />
                     </button>
                     <button
                       onClick={(e) => {

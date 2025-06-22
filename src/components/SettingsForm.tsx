@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSso } from '../contexts/SsoContext';
 import { AppSettings } from '../types/store';
-import { LogOut, Trash } from 'lucide-react';
+import { LogOut, Trash, FileText, FolderOpen } from 'lucide-react';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
 import { useElectron } from '../contexts/ElectronContext';
 
@@ -80,6 +80,24 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
     }
   };
 
+  const handleOpenSettingsFile = async () => {
+    try {
+      await window.electronApp.openSettingsFile();
+    } catch (error) {
+      console.error('Error opening settings file:', error);
+      alert('Failed to open settings file');
+    }
+  };
+
+  const handleOpenLogsFile = async () => {
+    try {
+      await window.electronApp.openLogsFile();
+    } catch (error) {
+      console.error('Error opening logs file:', error);
+      alert('Failed to open logs file');
+    }
+  };
+
   const inputStyle = {
     width: '100%',
     padding: '8px 12px',
@@ -102,8 +120,54 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
     marginBottom: '16px'
   };
 
+  const buttonStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 16px',
+    backgroundColor: 'var(--color-bg-secondary)',
+    border: '1px solid var(--color-border)',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    color: 'var(--color-text-primary)',
+    fontSize: '14px'
+  };
+
   return (
-    <div>
+    <div style={{
+      padding: '24px',
+      backgroundColor: 'var(--color-bg-primary)',
+      borderRadius: '8px',
+      maxWidth: '600px',
+      margin: '0 auto'
+    }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px'
+      }}>
+        <h2 style={{ margin: 0 }}>Settings</h2>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={handleOpenSettingsFile}
+            style={buttonStyle}
+            title="Open Settings File"
+          >
+            <FileText size={16} />
+            Settings File
+          </button>
+          <button
+            onClick={handleOpenLogsFile}
+            style={buttonStyle}
+            title="Open Logs Directory"
+          >
+            <FolderOpen size={16} />
+            Logs
+          </button>
+        </div>
+      </div>
+
       <div style={{ marginBottom: '24px' }}>
         <h2 style={{ 
           fontSize: '1.25rem', 
