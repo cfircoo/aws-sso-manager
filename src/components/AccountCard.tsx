@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Settings } from 'lucide-react';
 import { AwsAccount, AwsRole } from '../types/aws';
 import { toast } from 'sonner';
 import { useSso } from '../contexts/SsoContext';
+import KubernetesClustersDialog from './KubernetesClustersDialog';
 
 interface AccountCardProps {
   account: AwsAccount;
@@ -17,6 +18,8 @@ const AccountCard = ({ account, onRoleSelect, onOpenTerminal, defaultProfile, on
   const [roles, setRoles] = useState<AwsRole[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRoleCredentials, setSelectedRoleCredentials] = useState<{roleName: string, credentials: any} | null>(null);
+  const [showKubernetes, setShowKubernetes] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const { accessToken } = useSso();
   
   const handleToggle = async () => {
@@ -73,6 +76,11 @@ AWS_SESSION_TOKEN=${credentials.sessionToken}`;
     }
   };
 
+  const handleShowKubernetes = (roleName: string) => {
+    setSelectedRole(roleName);
+    setShowKubernetes(true);
+  };
+
   // Check if this account contains the default role
   const isDefaultAccount = defaultProfile?.found && defaultProfile.accountId === account.accountId;
 
@@ -123,7 +131,7 @@ AWS_SESSION_TOKEN=${credentials.sessionToken}`;
                       </span>
                     )}
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-2 flex-wrap">
                     <button
                       onClick={() => handleShowCredentials(role.roleName)}
                       className="px-3 py-1 bg-gray-200 text-gray-800 rounded text-sm hover:bg-gray-300"
@@ -141,6 +149,13 @@ AWS_SESSION_TOKEN=${credentials.sessionToken}`;
                       className="px-3 py-1 bg-green-700 text-white rounded text-sm hover:bg-green-800"
                     >
                       Open zsh
+                    </button>
+                    <button
+                      onClick={() => handleShowKubernetes(role.roleName)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-1"
+                    >
+                      <Settings className="w-3 h-3" />
+                      K8s Clusters
                     </button>
                   </div>
                 </div>
@@ -177,6 +192,20 @@ AWS_SESSION_TOKEN=${selectedRoleCredentials.credentials.sessionToken}`}
             </div>
           </div>
         </div>
+      )}
+
+      {showKubernetes && selectedRole && accessToken && (
+        <KubernetesClustersDialog
+          isOpen={showKubernetes}
+          onClose={() => {
+            setShowKubernetes(false);
+            setSelectedRole(null);
+          }}
+          accountId={account.accountId}
+          accountName={account.accountName || 'Unnamed Account'}
+          roleName={selectedRole}
+          accessToken={accessToken}
+        />
       )}
     </div>
   );

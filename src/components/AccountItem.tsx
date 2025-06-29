@@ -1,9 +1,10 @@
 import { AwsAccount } from '../types/aws';
-import { Star, Copy, Terminal, Check, Bookmark, ExternalLink } from 'lucide-react';
+import { Star, Copy, Terminal, Check, Bookmark, ExternalLink, Settings, Box } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
 import { useSsoPortalUrl } from './common/SsoPortalUrl';
+import KubernetesClustersDialog from './KubernetesClustersDialog';
 
 interface AccountItemProps {
   account: AwsAccount;
@@ -42,6 +43,8 @@ const AccountItem = ({
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<any>(null);
   const [isLoadingCreds, setIsLoadingCreds] = useState(false);
+  const [showKubernetes, setShowKubernetes] = useState(false);
+  const [kubernetesRole, setKubernetesRole] = useState<string | null>(null);
   const { isQuickAccess, toggleQuickAccess } = useQuickAccessRoles();
   
   // Get the SSO URL generator
@@ -169,6 +172,13 @@ const AccountItem = ({
       console.error('Error opening AWS Console:', err);
       alert('Failed to open AWS Console: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
+  };
+
+  const handleShowKubernetes = (roleName: string) => {
+    console.log('K8s button clicked for role:', roleName);
+    setKubernetesRole(roleName);
+    setShowKubernetes(true);
+    console.log('K8s dialog state set to:', true);
   };
 
   // Log any errors
@@ -376,6 +386,26 @@ const AccountItem = ({
                       }}
                     >
                       <Terminal size={16} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShowKubernetes(role.roleName);
+                      }}
+                      title="View K8s Clusters"
+                      style={{
+                        backgroundColor: '#1976d2',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <Box size={16} />
                     </button>
                     <button
                       onClick={(e) => {
@@ -622,6 +652,21 @@ export AWS_SESSION_TOKEN=${credentials.sessionToken}`;
             Loading credentials...
           </div>
         </div>
+      )}
+
+      {/* Kubernetes Clusters Dialog */}
+      {showKubernetes && kubernetesRole && accessToken && (
+        <KubernetesClustersDialog
+          isOpen={showKubernetes}
+          onClose={() => {
+            setShowKubernetes(false);
+            setKubernetesRole(null);
+          }}
+          accountId={account.accountId}
+          accountName={account.accountName || 'Unnamed Account'}
+          roleName={kubernetesRole}
+          accessToken={accessToken}
+        />
       )}
     </div>
   );
