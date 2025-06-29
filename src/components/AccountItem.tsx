@@ -132,13 +132,9 @@ const AccountItem = ({
     try {
       // Use only window.awsSso to avoid TypeScript errors
       if (window.awsSso && window.awsSso.setDefaultProfile) {
-        const result = await window.awsSso.setDefaultProfile(accountId, roleName);
-        if (result.success) {
-          alert(`Default profile updated successfully:\nAccount: ${accountId}\nRole: ${roleName}`);
-          onProfileChanged();
-        } else {
-          alert(`Failed to update default profile: ${result.message || 'Unknown error'}`);
-        }
+        await window.awsSso.setDefaultProfile(accountId, roleName);
+        alert(`Default profile updated successfully:\nAccount: ${accountId}\nRole: ${roleName}`);
+        onProfileChanged();
       } else {
         console.error('setDefaultProfile method not available');
         alert('Error: Profile update functionality not available.');
