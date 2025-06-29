@@ -1,5 +1,4 @@
 import { AwsAccount, AwsRole } from './aws';
-import { EcrLoginResponse } from '../lib/sso';
 
 interface ElectronStore {
   get: <T>(key: string) => Promise<T>;
@@ -61,6 +60,29 @@ interface AwsSsoApi {
     success: boolean;
     message: string;
     timestamp?: number;
+  }>;
+  listEksClusters: (accessToken: string, accountId: string, roleName: string, region: string) => Promise<{
+    success: boolean;
+    clusters: Array<{
+      name: string;
+      status: string;
+      version: string;
+      endpoint: string | null;
+      arn: string | null;
+      region: string;
+    }>;
+    message?: string;
+  }>;
+  setKubectlContext: (accessToken: string, accountId: string, roleName: string, clusterName: string, region: string) => Promise<{
+    success: boolean;
+    message?: string;
+  }>;
+  checkKubectlStatus: () => Promise<{
+    available: boolean;
+    version?: string;
+    currentContext?: string;
+    clusterInfo?: string;
+    message: string;
   }>;
   getDefaultProfile: () => Promise<{ accountId: string; roleName: string; found: boolean; }>;
   setDefaultProfile: (accountId: string, roleName: string) => Promise<void>;
