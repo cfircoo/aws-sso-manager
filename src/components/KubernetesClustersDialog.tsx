@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, CheckCircle, XCircle, Settings, Terminal, RefreshCw, ExternalLink, ArrowLeft, Globe, MapPin, X, Zap, Star, Copy, Check, Box } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Settings, Terminal, RefreshCw, ExternalLink, ArrowLeft, Globe, MapPin, X, Zap, Star, Copy, Check, Box, Clock, Trash2, History } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRecentlyUsedRegions } from '../hooks/useRecentlyUsedRegions';
 
 interface EksCluster {
   name: string;
@@ -68,6 +69,15 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [showRegionSelection, setShowRegionSelection] = useState(true);
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
+  
+  // Recently used regions hook
+  const { 
+    recentRegions, 
+    trackRegionUsage, 
+    removeRecentRegion, 
+    getTimeAgo, 
+    hasRecentRegions 
+  } = useRecentlyUsedRegions();
 
   const showBeautifulToast = (type: 'success' | 'error', title: string, description?: string, clusterId?: string) => {
     if (type === 'success') {
@@ -182,6 +192,9 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
     try {
       const result = await window.awsSso.setKubectlContext(accessToken, accountId, roleName, clusterName, region);
       if (result.success) {
+        // Track this region usage for the recently used feature
+        trackRegionUsage(region, clusterName, accountId);
+        
         showBeautifulToast(
           'success',
           '🎉 kubectl context set successfully!',
@@ -297,7 +310,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     backdropFilter: 'blur(4px)',
     WebkitBackdropFilter: 'blur(4px)',
-    zIndex: 10000,
+    zIndex: 99999,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -306,9 +319,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
   };
 
   const modalStyle: React.CSSProperties = {
-    backgroundColor: 'white',
     borderRadius: isMobile ? '20px' : '24px',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
     width: '100%',
     maxWidth: isMobile ? '100%' : isTablet ? '90%' : '1200px',
     maxHeight: isMobile ? '95vh' : '90vh',
@@ -319,7 +330,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
   };
 
   const headerStyle: React.CSSProperties = {
-    background: '#4F46E5',
+    background: '#F97316',
     color: 'white',
     padding: isMobile ? '20px 16px' : isTablet ? '24px 20px' : '32px',
     position: 'relative',
@@ -426,7 +437,11 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
       `}</style>
       
       <div style={modalOverlayStyle} onClick={onClose}>
-        <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-glass-enhanced modal-content-enhanced" 
+          style={modalStyle} 
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
           <div style={headerStyle}>
             <div style={{ position: 'relative', zIndex: 1 }}>
@@ -532,7 +547,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Terminal style={{ width: '20px', height: '20px', color: '#4F46E5' }} />
+                  <Terminal style={{ width: '20px', height: '20px', color: '#F97316' }} />
                   kubectl Status
                 </h3>
                 <button
@@ -540,7 +555,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                   disabled={isLoading}
                   style={{
                     padding: '8px',
-                    background: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)',
+                    background: 'white',
                     border: '2px solid #D1D5DB',
                     borderRadius: '12px',
                     cursor: 'pointer',
@@ -599,7 +614,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                             background: '#F3F4F6',
                             borderRadius: '4px',
                             fontSize: '12px',
-                            color: '#4F46E5',
+                            color: '#F97316',
                             fontFamily: 'monospace'
                           }}>
                             {kubectlStatus.currentContext}
@@ -620,18 +635,194 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
             {/* Main Content */}
             {showRegionSelection ? (
               <div>
+                {/* Recently Used Regions Section */}
+                {hasRecentRegions && (
+                  <div style={{ marginBottom: '40px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ 
+                          padding: '8px',
+                          background: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
+                          borderRadius: '12px',
+                          color: 'white'
+                        }}>
+                          <History style={{ width: '18px', height: '18px' }} />
+                        </div>
+                        <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#1F2937' }}>
+                          Recently Used Regions
+                        </h3>
+                      </div>
+                    </div>
+                    
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', 
+                      gap: '12px',
+                      marginBottom: '20px'
+                    }}>
+                      {recentRegions.map((recentRegion) => {
+                        const regionInfo = AWS_REGIONS.find(r => r.value === recentRegion.region);
+                        return (
+                          <div
+                            key={recentRegion.region}
+                            style={{
+                              position: 'relative',
+                              background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
+                              border: '2px solid #F97316',
+                              borderRadius: '16px',
+                              padding: '16px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease',
+                              overflow: 'hidden'
+                            }}
+                            onClick={() => handleRegionSelect(recentRegion.region)}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.boxShadow = '0 12px 30px rgba(249, 115, 22, 0.2)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            {/* Remove button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeRecentRegion(recentRegion.region);
+                              }}
+                              style={{
+                                position: 'absolute',
+                                top: '8px',
+                                right: '8px',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '4px',
+                                cursor: 'pointer',
+                                color: '#DC2626',
+                                transition: 'all 0.2s ease',
+                                opacity: 0.7
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#DC2626';
+                                e.currentTarget.style.color = 'white';
+                                e.currentTarget.style.opacity = '1';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                                e.currentTarget.style.color = '#DC2626';
+                                e.currentTarget.style.opacity = '0.7';
+                              }}
+                              title="Remove from recently used"
+                            >
+                              <Trash2 style={{ width: '12px', height: '12px' }} />
+                            </button>
+
+                            {/* Glow effect */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '0',
+                              left: '0',
+                              right: '0',
+                              height: '3px',
+                              background: 'linear-gradient(90deg, #F97316, #DC2626)',
+                              borderRadius: '16px 16px 0 0'
+                            }} />
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                              <div style={{ fontSize: '20px' }}>{regionInfo?.flag || '🌍'}</div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: '700', fontSize: '14px', color: '#F97316' }}>
+                                  {recentRegion.region}
+                                </div>
+                                <div style={{ color: '#92400E', fontSize: '12px', opacity: 0.8 }}>
+                                  {regionInfo?.label || recentRegion.region}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div style={{ marginBottom: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                                <Clock style={{ width: '12px', height: '12px', color: '#92400E' }} />
+                                <span style={{ fontSize: '11px', color: '#92400E' }}>
+                                  {getTimeAgo(recentRegion.lastUsed)}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#92400E', opacity: 0.8 }}>
+                                {recentRegion.usageCount} connection{recentRegion.usageCount !== 1 ? 's' : ''}
+                              </div>
+                            </div>
+                            
+                            {/* Recent clusters */}
+                            <div style={{ 
+                              background: 'rgba(255, 255, 255, 0.5)',
+                              borderRadius: '8px',
+                              padding: '8px',
+                              fontSize: '11px'
+                            }}>
+                              <div style={{ fontWeight: '600', color: '#92400E', marginBottom: '4px' }}>
+                                Recent clusters:
+                              </div>
+                              {recentRegion.clusters.slice(0, 2).map((cluster, idx) => (
+                                <div key={idx} style={{ 
+                                  color: '#A16207',
+                                  marginBottom: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  <Box style={{ width: '10px', height: '10px' }} />
+                                  <span style={{ 
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    flex: 1
+                                  }}>
+                                    {cluster.name}
+                                  </span>
+                                </div>
+                              ))}
+                              {recentRegion.clusters.length > 2 && (
+                                <div style={{ color: '#A16207', fontSize: '10px', opacity: 0.7 }}>
+                                  +{recentRegion.clusters.length - 2} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Divider */}
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '16px', 
+                      margin: '32px 0',
+                      opacity: 0.6
+                    }}>
+                      <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
+                      <span style={{ color: '#6B7280', fontSize: '14px', fontWeight: '500' }}>
+                        or browse all regions
+                      </span>
+                      <div style={{ flex: 1, height: '1px', background: '#E5E7EB' }} />
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px' }}>
                     <div style={{ 
                       padding: '12px',
-                      background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                      background: 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
                       borderRadius: '16px',
                       color: 'white'
                     }}>
                       <Globe style={{ width: '24px', height: '24px' }} />
                     </div>
                     <h2 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: '#1F2937' }}>
-                      Choose Your Region
+                      {hasRecentRegions ? 'All AWS Regions' : 'Choose Your Region'}
                     </h2>
                   </div>
                   <p style={{ color: '#6B7280', fontSize: '16px', maxWidth: '600px', margin: '0 auto' }}>
@@ -664,10 +855,10 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                         transition: 'all 0.2s ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = '#4F46E5';
-                        e.currentTarget.style.background = 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)';
+                        e.currentTarget.style.borderColor = '#F97316';
+                        e.currentTarget.style.background = 'white';
                         e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(79, 70, 229, 0.15)';
+                        e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(249, 115, 22, 0.15)';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.borderColor = '#E5E7EB';
@@ -733,7 +924,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                         onClick={handleBackToRegions}
                         style={{
                           padding: '8px',
-                          background: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)',
+                          background: 'white',
                           border: '2px solid #D1D5DB',
                           borderRadius: '12px',
                           cursor: 'pointer',
@@ -757,7 +948,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                             alignItems: 'center',
                             gap: '6px',
                             padding: '6px 12px',
-                            background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                            background: 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
                             color: 'white',
                             borderRadius: '12px',
                             fontSize: '14px',
@@ -780,7 +971,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                         alignItems: 'center',
                         gap: '8px',
                         padding: '12px 24px',
-                        background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                        background: 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '12px',
@@ -808,7 +999,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                     <div style={{ 
                       width: '60px',
                       height: '60px',
-                      background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+                      background: 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
                       borderRadius: '50%',
                       display: 'flex',
                       alignItems: 'center',
@@ -863,14 +1054,14 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                         key={cluster.name}
                         style={{
                           background: 'white',
-                          border: isCurrentContext(cluster.name) ? '2px solid #4F46E5' : '2px solid #E5E7EB',
+                          border: isCurrentContext(cluster.name) ? '2px solid #F97316' : '2px solid #E5E7EB',
                           borderRadius: '20px',
                           padding: '24px',
                           marginBottom: '16px',
                           transition: 'all 0.3s ease',
                           ...(isCurrentContext(cluster.name) && {
-                            background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
-                            boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.2)'
+                            background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
+                            boxShadow: '0 10px 25px -5px rgba(249, 115, 22, 0.2)'
                           })
                         }}
                         onMouseEnter={(e) => {
@@ -894,7 +1085,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px', marginBottom: isMobile ? '12px' : '16px' }}>
                               <div style={{ 
                                 padding: isMobile ? '8px' : '12px',
-                                background: isCurrentContext(cluster.name) ? '#4F46E5' : '#F3F4F6',
+                                background: isCurrentContext(cluster.name) ? '#F97316' : 'white',
                                 borderRadius: isMobile ? '12px' : '16px',
                                 color: isCurrentContext(cluster.name) ? 'white' : '#6B7280',
                                 flexShrink: 0
@@ -926,7 +1117,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                                       alignItems: 'center',
                                       gap: '3px',
                                       padding: '3px 6px',
-                                      background: '#4F46E5',
+                                      background: '#F97316',
                                       color: 'white',
                                       borderRadius: '6px',
                                       fontSize: '10px',
@@ -943,7 +1134,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                             </div>
                             
                             <div style={{ 
-                              background: '#F8FAFC',
+                              background: 'white',
                               borderRadius: isMobile ? '8px' : '12px',
                               padding: isMobile ? '12px' : '16px',
                               border: '1px solid #E2E8F0'
@@ -998,7 +1189,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                                     onClick={() => copyEndpoint(cluster.endpoint!)}
                                     style={{
                                       padding: isMobile ? '6px' : '8px',
-                                      background: copiedEndpoint === cluster.endpoint ? '#10B981' : '#F3F4F6',
+                                      background: copiedEndpoint === cluster.endpoint ? '#10B981' : 'white',
                                       border: 'none',
                                       borderRadius: '6px',
                                       cursor: 'pointer',
@@ -1031,7 +1222,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                                 justifyContent: 'center',
                                 gap: isMobile ? '8px' : '12px',
                                 padding: isMobile ? '12px 16px' : '16px 24px',
-                                background: isCurrentContext(cluster.name) ? '#4F46E5' : '#F3F4F6',
+                                background: isCurrentContext(cluster.name) ? '#F97316' : 'white',
                                 color: isCurrentContext(cluster.name) ? 'white' : '#374151',
                                 border: 'none',
                                 borderRadius: isMobile ? '12px' : '16px',
@@ -1045,15 +1236,15 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                               }}
                               onMouseEnter={(e) => {
                                 if (!isCurrentContext(cluster.name) && !e.currentTarget.disabled) {
-                                  e.currentTarget.style.background = '#4F46E5';
+                                  e.currentTarget.style.background = '#F97316';
                                   e.currentTarget.style.color = 'white';
                                   e.currentTarget.style.transform = 'translateY(-1px)';
-                                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(79, 70, 229, 0.3)';
+                                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.3)';
                                 }
                               }}
                               onMouseLeave={(e) => {
                                 if (!isCurrentContext(cluster.name)) {
-                                  e.currentTarget.style.background = '#F3F4F6';
+                                  e.currentTarget.style.background = 'white';
                                   e.currentTarget.style.color = '#374151';
                                   e.currentTarget.style.transform = 'translateY(0)';
                                   e.currentTarget.style.boxShadow = 'none';
@@ -1114,7 +1305,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
 
           {/* Footer */}
           <div style={{ 
-            background: '#F8FAFC',
+            background: 'white',
             borderTop: '1px solid #E2E8F0',
             padding: isMobile ? '16px' : '24px 32px',
             display: 'flex',
@@ -1130,7 +1321,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                 onClick={onClose}
                 style={{
                   padding: isMobile ? '10px 20px' : '12px 24px',
-                  background: '#F3F4F6',
+                  background: 'white',
                   color: '#374151',
                   border: '1px solid #D1D5DB',
                   borderRadius: isMobile ? '12px' : '16px',
@@ -1141,14 +1332,14 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                   width: isMobile ? '100%' : 'auto'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#4F46E5';
+                  e.currentTarget.style.background = '#F97316';
                   e.currentTarget.style.color = 'white';
-                  e.currentTarget.style.borderColor = '#4F46E5';
+                  e.currentTarget.style.borderColor = '#F97316';
                   e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(79, 70, 229, 0.3)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.3)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#F3F4F6';
+                  e.currentTarget.style.background = 'white';
                   e.currentTarget.style.color = '#374151';
                   e.currentTarget.style.borderColor = '#D1D5DB';
                   e.currentTarget.style.transform = 'translateY(0)';

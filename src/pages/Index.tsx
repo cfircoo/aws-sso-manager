@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import SearchBar from '../components/SearchBar';
 import AccountCard from '../components/AccountCard';
 import RoleSelector from '../components/RoleSelector';
+import Footer from '../components/Footer';
 import { AwsAccount } from '../types/aws';
 import { toast } from 'sonner';
 import { Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -163,9 +164,7 @@ const Index = () => {
         )}
       </main>
       
-      <footer className="text-center py-6 text-xs text-muted-foreground">
-        AWS SSO Switcher • Effortlessly manage your AWS accounts and roles
-      </footer>
+      <Footer />
     </div>
   );
 };

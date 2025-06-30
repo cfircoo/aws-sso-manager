@@ -1,13 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import SimpleApp from './SimpleApp';
 import { SsoProvider } from './contexts/SsoContext';
 import { ElectronProvider } from './contexts/ElectronContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import Splash from './pages/Splash';
+import ModernToaster from './components/ModernToaster';
 import Login from './pages/Login';
 import Accounts from './pages/Accounts';
 import './index.css';
@@ -53,12 +51,12 @@ try {
           <ElectronProvider>
             <SsoProvider>
               <ThemeProvider>
-                <Toaster position="top-right" />
+                <ModernToaster />
                 <Routes>
-                  <Route path="/" element={<Splash />} />
+                  <Route path="/" element={<Navigate to="/login" replace />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/accounts" element={<Accounts />} />
-                  <Route path="*" element={<Splash />} />
+                  <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
               </ThemeProvider>
             </SsoProvider>

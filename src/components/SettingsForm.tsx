@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSso } from '../contexts/SsoContext';
 import { AppSettings } from '../types/store';
-import { LogOut, Trash, FileText, FolderOpen } from 'lucide-react';
+import { LogOut, Trash, FileText, FolderOpen, Settings, Save, Zap, Shield, Box, Database } from 'lucide-react';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
 import { useElectron } from '../contexts/ElectronContext';
+import { showToast } from './toast';
 
 interface SettingsFormProps {
   onClose?: () => void;
@@ -26,7 +27,6 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
     codeArtifactRepo: ''
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [savedMessage, setSavedMessage] = useState('');
 
   useEffect(() => {
     // Initialize form with current settings
@@ -44,17 +44,15 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    setSavedMessage('');
 
     try {
       await updateAppSettings(formValues);
-      setSavedMessage('Settings saved successfully!');
+      showToast.success('Settings saved!', 'Your configuration has been updated successfully.');
       setTimeout(() => {
-        setSavedMessage('');
         if (onClose) onClose();
-      }, 2000);
+      }, 1500);
     } catch (error) {
-      setSavedMessage('Error saving settings');
+      showToast.error('Failed to save settings', 'Please try again.');
       console.error('Failed to save settings:', error);
     } finally {
       setIsSaving(false);
@@ -72,10 +70,10 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
     if (window.confirm('Are you sure you want to clear all quick access roles?')) {
       try {
         await electron.clearQuickAccessRoles();
-        alert('All quick access roles have been cleared');
+        showToast.success('Quick access cleared', 'All quick access roles have been removed.');
       } catch (error) {
         console.error('Error clearing quick access roles:', error);
-        alert('Failed to clear quick access roles');
+        showToast.error('Failed to clear roles', 'Please try again.');
       }
     }
   };
@@ -85,7 +83,7 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
       await window.electronApp.openSettingsFile();
     } catch (error) {
       console.error('Error opening settings file:', error);
-      alert('Failed to open settings file');
+      showToast.error('Failed to open settings file', 'Unable to access the settings file.');
     }
   };
 
@@ -94,236 +92,223 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
       await window.electronApp.openLogsFile();
     } catch (error) {
       console.error('Error opening logs file:', error);
-      alert('Failed to open logs file');
+      showToast.error('Failed to open logs', 'Unable to access the logs directory.');
     }
   };
 
-  const inputStyle = {
-    width: '100%',
-    padding: '8px 12px',
-    borderRadius: '6px',
-    border: '1px solid #d1d5db',
-    fontSize: '0.875rem',
-    lineHeight: '1.5',
-    marginTop: '4px'
-  };
-
-  const labelStyle = {
-    display: 'block',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    marginBottom: '4px',
-    color: '#374151'
-  };
-
-  const formGroupStyle = {
-    marginBottom: '16px'
-  };
-
-  const buttonStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 16px',
-    backgroundColor: 'var(--color-bg-secondary)',
-    border: '1px solid var(--color-border)',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    color: 'var(--color-text-primary)',
-    fontSize: '14px'
-  };
-
   return (
-    <div style={{
-      padding: '24px',
-      backgroundColor: 'var(--color-bg-primary)',
-      borderRadius: '8px',
-      maxWidth: '600px',
-      margin: '0 auto'
-    }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px'
-      }}>
-        <h2 style={{ margin: 0 }}>Settings</h2>
-        <div style={{ display: 'flex', gap: '8px' }}>
+    <div className="p-8 animate-fade-in">
+      {/* Modern Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center space-x-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg">
+            <Settings className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gradient">Settings</h1>
+            <p className="text-tertiary">Configure your AWS SSO and service settings</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-3">
           <button
             onClick={handleOpenSettingsFile}
-            style={buttonStyle}
+            className="btn-secondary hover:scale-105 transition-all duration-200"
             title="Open Settings File"
           >
             <FileText size={16} />
-            Settings File
+            <span className="hidden sm:inline">Settings File</span>
           </button>
           <button
             onClick={handleOpenLogsFile}
-            style={buttonStyle}
+            className="btn-secondary hover:scale-105 transition-all duration-200"
             title="Open Logs Directory"
           >
             <FolderOpen size={16} />
-            Logs
+            <span className="hidden sm:inline">Logs</span>
           </button>
         </div>
       </div>
 
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ 
-          fontSize: '1.25rem', 
-          fontWeight: 'bold',
-          color: '#111827', 
-          marginBottom: '8px' 
-        }}>
-          Application Settings
-        </h2>
-        <p style={{ 
-          fontSize: '0.875rem', 
-          color: '#6b7280' 
-        }}>
-          Configure your AWS SSO and service settings
-        </p>
-      </div>
-
-      <form onSubmit={handleSubmit}>
-        <div style={formGroupStyle}>
-          <label style={labelStyle} htmlFor="ssoUrl">AWS SSO Start URL</label>
-          <input
-            style={inputStyle}
-            id="ssoUrl"
-            name="ssoUrl"
-            placeholder="https://d-xxxxxxxxxx.awsapps.com/start"
-            value={formValues.ssoUrl}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        
-        <div style={formGroupStyle}>
-          <label style={labelStyle} htmlFor="ssoRegion">AWS SSO Region</label>
-          <input
-            style={inputStyle}
-            id="ssoRegion"
-            name="ssoRegion"
-            placeholder="us-east-1"
-            value={formValues.ssoRegion}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        
-        <div style={formGroupStyle}>
-          <label style={labelStyle} htmlFor="ecrRepo">ECR Account ID</label>
-          <input
-            style={inputStyle}
-            id="ecrRepo"
-            name="ecrRepo"
-            placeholder="123456789012"
-            value={formValues.ecrRepo}
-            onChange={handleChange}
-          />
-        </div>
-        
-        <div style={formGroupStyle}>
-          <label style={labelStyle} htmlFor="ecrRole">ECR Role Name</label>
-          <input
-            style={inputStyle}
-            id="ecrRole"
-            name="ecrRole"
-            placeholder="DeveloperRole"
-            value={formValues.ecrRole}
-            onChange={handleChange}
-          />
-        </div>
-        
-        <div style={formGroupStyle}>
-          <label style={labelStyle} htmlFor="codeArtifactAccount">CodeArtifact Account ID</label>
-          <input
-            style={inputStyle}
-            id="codeArtifactAccount"
-            name="codeArtifactAccount"
-            placeholder="123456789012"
-            value={formValues.codeArtifactAccount}
-            onChange={handleChange}
-          />
-        </div>
-        
-        <div style={formGroupStyle}>
-          <label style={labelStyle} htmlFor="codeArtifactRole">CodeArtifact Role Name</label>
-          <input
-            style={inputStyle}
-            id="codeArtifactRole"
-            name="codeArtifactRole"
-            placeholder="DeveloperRole"
-            value={formValues.codeArtifactRole}
-            onChange={handleChange}
-          />
-        </div>
-        
-        <div style={formGroupStyle}>
-          <label style={labelStyle} htmlFor="codeArtifactDomain">CodeArtifact Domain</label>
-          <input
-            style={inputStyle}
-            id="codeArtifactDomain"
-            name="codeArtifactDomain"
-            placeholder="your-domain"
-            value={formValues.codeArtifactDomain}
-            onChange={handleChange}
-          />
-        </div>
-        
-        <div style={formGroupStyle}>
-          <label style={labelStyle} htmlFor="codeArtifactRepo">CodeArtifact Repository</label>
-          <input
-            style={inputStyle}
-            id="codeArtifactRepo"
-            name="codeArtifactRepo"
-            placeholder="your-repo"
-            value={formValues.codeArtifactRepo}
-            onChange={handleChange}
-          />
-        </div>
-
-        {/* Quick Access Settings */}
-        <div style={{ 
-          marginTop: '24px', 
-          marginBottom: '24px', 
-          borderTop: '1px solid #e5e7eb',
-          paddingTop: '16px'
-        }}>
-          <h3 style={{ 
-            fontSize: '1rem', 
-            fontWeight: 'bold', 
-            color: '#111827', 
-            marginBottom: '12px' 
-          }}>
-            Quick Access
-          </h3>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* AWS SSO Configuration Section */}
+        <div className="glass-card p-6 animate-slide-in">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-white" />
+            </div>
             <div>
-              <div style={{ fontWeight: 500 }}>Quick Access Roles</div>
-              <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                {quickAccessRoles.length} role{quickAccessRoles.length !== 1 ? 's' : ''} in quick access
+              <h2 className="text-xl font-semibold text-primary">AWS SSO Configuration</h2>
+              <p className="text-sm text-tertiary">Core AWS Single Sign-On settings</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-secondary">AWS SSO Start URL</label>
+              <input
+                className="input-modern"
+                name="ssoUrl"
+                placeholder="https://d-xxxxxxxxxx.awsapps.com/start"
+                value={formValues.ssoUrl}
+                onChange={handleChange}
+                required
+              />
+              <p className="text-xs text-tertiary">Your organization's AWS SSO portal URL</p>
+            </div>
+            
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-secondary">AWS Region</label>
+              <input
+                className="input-modern"
+                name="ssoRegion"
+                placeholder="us-east-1"
+                value={formValues.ssoRegion}
+                onChange={handleChange}
+                required
+              />
+              <p className="text-xs text-tertiary">Primary AWS region for SSO operations</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ECR Configuration Section */}
+        <div className="glass-card p-6 animate-slide-in" style={{ animationDelay: '100ms' }}>
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center">
+              <Box className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-primary">ECR Configuration</h2>
+              <p className="text-sm text-tertiary">Elastic Container Registry settings</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-secondary">ECR Account ID</label>
+              <input
+                className="input-modern"
+                name="ecrRepo"
+                placeholder="123456789012"
+                value={formValues.ecrRepo}
+                onChange={handleChange}
+              />
+              <p className="text-xs text-tertiary">AWS account ID for ECR registry</p>
+            </div>
+            
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-secondary">ECR Role Name</label>
+              <input
+                className="input-modern"
+                name="ecrRole"
+                placeholder="DeveloperRole"
+                value={formValues.ecrRole}
+                onChange={handleChange}
+              />
+              <p className="text-xs text-tertiary">IAM role for ECR access</p>
+            </div>
+          </div>
+        </div>
+
+        {/* CodeArtifact Configuration Section */}
+        <div className="glass-card p-6 animate-slide-in" style={{ animationDelay: '200ms' }}>
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+              <Database className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-primary">CodeArtifact Configuration</h2>
+              <p className="text-sm text-tertiary">Package repository settings</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-secondary">Account ID</label>
+              <input
+                className="input-modern"
+                name="codeArtifactAccount"
+                placeholder="123456789012"
+                value={formValues.codeArtifactAccount}
+                onChange={handleChange}
+              />
+              <p className="text-xs text-tertiary">AWS account ID for CodeArtifact</p>
+            </div>
+            
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-secondary">Role Name</label>
+              <input
+                className="input-modern"
+                name="codeArtifactRole"
+                placeholder="DeveloperRole"
+                value={formValues.codeArtifactRole}
+                onChange={handleChange}
+              />
+              <p className="text-xs text-tertiary">IAM role for CodeArtifact access</p>
+            </div>
+            
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-secondary">Domain</label>
+              <input
+                className="input-modern"
+                name="codeArtifactDomain"
+                placeholder="your-domain"
+                value={formValues.codeArtifactDomain}
+                onChange={handleChange}
+              />
+              <p className="text-xs text-tertiary">CodeArtifact domain name</p>
+            </div>
+            
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-secondary">Repository</label>
+              <input
+                className="input-modern"
+                name="codeArtifactRepo"
+                placeholder="your-repo"
+                value={formValues.codeArtifactRepo}
+                onChange={handleChange}
+              />
+              <p className="text-xs text-tertiary">CodeArtifact repository name</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Access Management Section */}
+        <div className="glass-card p-6 animate-slide-in" style={{ animationDelay: '300ms' }}>
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-primary">Quick Access Management</h2>
+              <p className="text-sm text-tertiary">Manage your saved quick access roles</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-bg-surface rounded-xl border border-glass-border">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center border border-cyan-500/30">
+                <Zap className="w-6 h-6 text-cyan-400" />
+              </div>
+              <div>
+                <div className="font-semibold text-primary">Quick Access Roles</div>
+                <div className="text-sm text-tertiary">
+                  {quickAccessRoles.length} role{quickAccessRoles.length !== 1 ? 's' : ''} saved for quick access
+                </div>
               </div>
             </div>
             <button 
               type="button"
               onClick={handleClearQuickAccessRoles}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                backgroundColor: quickAccessRoles.length === 0 ? '#f3f4f6' : '#fee2e2',
-                color: quickAccessRoles.length === 0 ? '#9ca3af' : '#dc2626',
-                border: 'none',
-                padding: '8px 12px',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
-                gap: '6px',
-                cursor: quickAccessRoles.length === 0 ? 'not-allowed' : 'pointer',
-                opacity: quickAccessRoles.length === 0 ? 0.5 : 1
-              }}
               disabled={quickAccessRoles.length === 0}
+              className={`
+                flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200
+                ${quickAccessRoles.length === 0 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                  : 'bg-red-100 text-red-600 hover:bg-red-200 hover:scale-105'
+                }
+              `}
             >
               <Trash size={16} />
               <span>Clear All</span>
@@ -331,58 +316,28 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
           </div>
         </div>
         
-        <div style={{ 
-          marginTop: '24px', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          borderTop: '1px solid #e5e7eb',
-          paddingTop: '16px'
-        }}>
-          {isAuthenticated && (
-            <button
-              type="button"
-              onClick={handleLogout}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                backgroundColor: 'transparent',
-                border: 'none',
-                padding: '8px',
-                fontSize: '0.875rem',
-                color: '#ef4444',
-                cursor: 'pointer',
-                borderRadius: '4px'
-              }}
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </button>
-          )}
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between pt-6 border-t border-glass-border">
+          <div className="flex items-center space-x-4">
+            {isAuthenticated && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-4 py-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                title="Logout from AWS SSO"
+              >
+                <LogOut size={18} />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            )}
+          </div>
           
-          {savedMessage && (
-            <span style={{ color: '#22c55e', fontSize: '0.875rem' }}>{savedMessage}</span>
-          )}
-          
-          <div style={{ 
-            display: 'flex', 
-            gap: '8px', 
-            marginLeft: 'auto' 
-          }}>
+          <div className="flex items-center space-x-3">
             {onClose && (
               <button
                 type="button"
                 onClick={onClose}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: 'white',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '0.875rem',
-                  fontWeight: '500',
-                  color: '#374151',
-                  cursor: 'pointer'
-                }}
+                className="btn-secondary hover:scale-105 transition-all duration-200"
               >
                 Cancel
               </button>
@@ -390,19 +345,22 @@ export function SettingsForm({ onClose, onLogout, isAuthenticated = false }: Set
             <button
               type="submit"
               disabled={isSaving}
-              style={{
-                padding: '8px 16px',
-                backgroundColor: '#2563eb',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                opacity: isSaving ? 0.7 : 1
-              }}
+              className={`
+                btn-primary flex items-center space-x-2 hover:scale-105 transition-all duration-200
+                ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}
+              `}
             >
-              {isSaving ? 'Saving...' : 'Save Settings'}
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  <span>Save Settings</span>
+                </>
+              )}
             </button>
           </div>
         </div>
