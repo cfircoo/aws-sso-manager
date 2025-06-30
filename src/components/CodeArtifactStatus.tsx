@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { Archive, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { CodeArtifactLoginResponse } from '../types/aws';
 
 interface CodeArtifactStatusProps {
@@ -13,15 +14,27 @@ const CodeArtifactStatus = ({ codeArtifactStatus, onCodeArtifactLogin }: CodeArt
   
   const getCodeArtifactTooltip = (status: CodeArtifactLoginResponse | undefined | null) => {
     if (!status) return "Click to log in to CodeArtifact";
-    if (status.success) return `Logged in to CodeArtifact (${status.message || ''})`;
+    if (status.success) return `Successfully logged in to CodeArtifact (${status.message || ''})`;
     return status.message || "Click to log in to CodeArtifact";
+  };
+
+  const getStatusIcon = () => {
+    if (!codeArtifactStatus) return <Clock className="w-3 h-3" />;
+    if (codeArtifactStatus.success) return <CheckCircle className="w-3 h-3" />;
+    return <AlertCircle className="w-3 h-3" />;
+  };
+
+  const getStatusClass = () => {
+    if (!codeArtifactStatus) return 'badge status-badge-loading';
+    if (codeArtifactStatus.success) return 'badge status-badge-success';
+    return 'badge status-badge-error';
   };
   
   // Only log when status changes meaningfully
   if (!prevStatusRef.current || 
       prevStatusRef.current.success !== codeArtifactStatus.success ||
       prevStatusRef.current.message !== codeArtifactStatus.message) {
-    console.log("[CodeArtifactStatus] Received props:", { codeArtifactStatus });
+    console.log("[CodeArtifactStatus] Status updated:", { codeArtifactStatus });
   }
   
   // Update ref for next render comparison
@@ -30,20 +43,16 @@ const CodeArtifactStatus = ({ codeArtifactStatus, onCodeArtifactLogin }: CodeArt
   return (
     <button 
       onClick={onCodeArtifactLogin}
-      style={{ 
-        backgroundColor: codeArtifactStatus.success ? '#e8f5e9' : '#ffebee',
-        padding: '4px 8px',
-        borderRadius: '4px',
-        fontSize: '0.75rem',
-        fontWeight: 'bold',
-        color: codeArtifactStatus.success ? '#2e7d32' : '#c62828',
-        border: 'none',
-        cursor: 'pointer',
-        transition: 'background-color 0.2s'
-      }}
+      className={`
+        ${getStatusClass()}
+        transition-all duration-200 backdrop-blur-sm hover:scale-105 
+        flex items-center space-x-1.5 cursor-pointer group
+      `}
       title={getCodeArtifactTooltip(codeArtifactStatus)}
     >
-      CodeArtifact
+      <Archive className="w-3 h-3" />
+      {getStatusIcon()}
+      <span className="font-medium text-xs">Artifact</span>
     </button>
   );
 };

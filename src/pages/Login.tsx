@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSsoContext } from '../contexts/SsoContext';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import { toast } from 'sonner';
-import { Check, Info, Loader2 } from 'lucide-react';
+import { Loader2, Shield, Cloud } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -67,85 +68,102 @@ const Login = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#f9fafb' }}>
-      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)', width: '100%', maxWidth: '400px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '24px', color: '#1f2937' }}>AWS SSO Manager Login</h1>
-        
-        <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-          {error && <p style={{ color: '#ef4444', marginBottom: '16px', fontSize: '0.875rem' }}>{error}</p>}
-          
-          <div style={{ marginBottom: '20px' }}>
-            <label htmlFor="ssoUrl" style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500', color: '#374151', textAlign: 'left' }}>SSO Start URL</label>
-            <input
-              id="ssoUrl"
-              type="text"
-              value={startUrl}
-              onChange={(e) => setStartUrl(e.target.value)}
-              placeholder="https://your-sso-domain.awsapps.com/start"
-              required
-              style={{ 
-                width: '100%', 
-                padding: '10px', 
-                border: '1px solid #d1d5db', 
-                borderRadius: '4px', 
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label htmlFor="ssoRegion" style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500', color: '#374151', textAlign: 'left' }}>SSO Region</label>
-            <input
-              id="ssoRegion"
-              type="text"
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              placeholder="us-east-1"
-              required
-              style={{ 
-                width: '100%', 
-                padding: '10px', 
-                border: '1px solid #d1d5db', 
-                borderRadius: '4px',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-          
-          <button
-            type="submit"
-            disabled={isLoading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              backgroundColor: isLoading ? '#9ca3af' : '#2563eb',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '1rem',
-              fontWeight: '500',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-          >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {isLoading ? 'Logging In...' : 'Login with AWS SSO'}
-          </button>
-        </form>
+    <div className="min-h-screen bg-gradient-to-br from-bg-primary via-bg-secondary to-bg-primary flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Subtle Animated Background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-1/4 left-1/4 w-64 h-64 bg-gradient-to-br from-accent/10 to-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
-      <footer style={{
-        position: 'absolute',
-        bottom: '10px',
-        width: '100%',
-        textAlign: 'center',
-        fontSize: '0.75rem',
-        color: '#6b7280' 
-      }}>
-        Author: Carmeli Cfir , contact: cfir@carmeli.me | All copyrights reserved to Cfir Carmeli
-      </footer>
+
+      {/* Main Login Container */}
+      <div className="relative z-10 w-full max-w-lg">
+       
+
+        {/* Modern Login Form */}
+        <div className="glass-card p-10 animate-fade-in" style={{ animationDelay: '200ms' }}>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 animate-shake">
+                <p className="text-red-300 text-sm text-center">{error}</p>
+              </div>
+            )}
+            
+            {/* SSO Start URL Field */}
+            <div className="space-y-3">
+              <label htmlFor="ssoUrl" className="block text-sm font-medium text-secondary">
+                SSO Start URL
+              </label>
+              <div className="relative">
+                <input
+                  id="ssoUrl"
+                  type="text"
+                  value={startUrl}
+                  onChange={(e) => setStartUrl(e.target.value)}
+                  placeholder="https://your-domain.awsapps.com/start"
+                  required
+                  className="w-full px-6 py-4 bg-bg-card border border-glass-border rounded-xl text-primary placeholder-tertiary focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-300 text-lg"
+                />
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 transition-opacity duration-300 focus-within:opacity-100 pointer-events-none"></div>
+              </div>
+            </div>
+
+            {/* SSO Region Field */}
+            <div className="space-y-3">
+              <label htmlFor="ssoRegion" className="block text-sm font-medium text-secondary">
+                AWS Region
+              </label>
+              <div className="relative">
+                <input
+                  id="ssoRegion"
+                  type="text"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  placeholder="us-east-1"
+                  required
+                  className="w-full px-6 py-4 bg-bg-card border border-glass-border rounded-xl text-primary placeholder-tertiary focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all duration-300 text-lg"
+                />
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 transition-opacity duration-300 focus-within:opacity-100 pointer-events-none"></div>
+              </div>
+            </div>
+            
+            {/* Modern Submit Button */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`
+                w-full py-5 px-8 rounded-xl font-semibold text-white text-lg
+                transition-all duration-300 transform relative overflow-hidden
+                ${isLoading 
+                  ? 'bg-gray-500 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 hover:scale-[1.02] hover:shadow-2xl hover:shadow-orange-500/25'
+                }
+                flex items-center justify-center space-x-3 group
+              `}
+            >
+              {/* Button Background Animation */}
+              {!isLoading && (
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+              )}
+              
+              {/* Button Content */}
+              <div className="relative flex items-center space-x-3">
+                {isLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <Shield className="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" />
+                )}
+                <span>{isLoading ? 'Signing In...' : 'Sign In'}</span>
+              </div>
+            </button>
+          </form>
+        </div>
+
+        {/* Copyright Footer */}
+        <div className="mt-8 animate-fade-in" style={{ animationDelay: '400ms' }}>
+          <Footer />
+        </div>
+      </div>
     </div>
   );
 };

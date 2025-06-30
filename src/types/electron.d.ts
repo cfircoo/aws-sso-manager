@@ -84,6 +84,10 @@ interface AwsSsoApi {
     clusterInfo?: string;
     message: string;
   }>;
+  checkDockerStatus: () => Promise<{
+    running: boolean;
+    message: string;
+  }>;
   getDefaultProfile: () => Promise<{ accountId: string; roleName: string; found: boolean; }>;
   setDefaultProfile: (accountId: string, roleName: string) => Promise<void>;
   logout: () => Promise<void>;

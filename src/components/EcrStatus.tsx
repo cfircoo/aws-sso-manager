@@ -1,4 +1,5 @@
 import React from 'react';
+import { Package, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { EcrLoginResponse } from '../types/aws';
 
 interface EcrStatusProps {
@@ -13,7 +14,7 @@ export const EcrStatus = ({ ecrStatus, onEcrLogin, isAuthenticated = false }: Ec
   
   const getEcrTooltip = (status: EcrLoginResponse | undefined | null) => {
     if (!status) return "ECR login status checking...";
-    if (status.success) return "Logged in to ECR";
+    if (status.success) return "Successfully logged in to ECR";
     if (status.message) {
       if (status.message.includes('Docker is not running')) {
         return "Docker is not running. Please start Docker Desktop and try again.";
@@ -23,27 +24,32 @@ export const EcrStatus = ({ ecrStatus, onEcrLogin, isAuthenticated = false }: Ec
     }
     return "Click to log in to ECR";
   };
-  
-  // Determine if the check passed (success is true)
-  const checkPassed = ecrStatus?.success === true;
+
+  const getStatusIcon = () => {
+    if (!ecrStatus) return <Clock className="w-3 h-3" />;
+    if (ecrStatus.success) return <CheckCircle className="w-3 h-3" />;
+    return <AlertCircle className="w-3 h-3" />;
+  };
+
+  const getStatusClass = () => {
+    if (!ecrStatus) return 'badge status-badge-loading';
+    if (ecrStatus.success) return 'badge status-badge-success';
+    return 'badge status-badge-error';
+  };
   
   return (
     <button 
       onClick={onEcrLogin}
-      style={{ 
-        backgroundColor: checkPassed ? '#e8f5e9' : '#ffebee',
-        padding: '4px 8px',
-        borderRadius: '4px',
-        fontSize: '0.75rem',
-        fontWeight: 'bold',
-        color: checkPassed ? '#2e7d32' : '#c62828',
-        border: 'none',
-        cursor: 'pointer',
-        transition: 'background-color 0.2s'
-      }}
+      className={`
+        ${getStatusClass()}
+        transition-all duration-200 backdrop-blur-sm hover:scale-105 
+        flex items-center space-x-1.5 cursor-pointer group
+      `}
       title={getEcrTooltip(ecrStatus)}
     >
-      ECR
+      <Package className="w-3 h-3" />
+      {getStatusIcon()}
+      <span className="font-medium">ECR</span>
     </button>
   );
 };

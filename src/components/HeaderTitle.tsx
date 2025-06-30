@@ -8,25 +8,17 @@ interface HeaderTitleProps {
 
 export const HeaderTitle = ({ title, appVersion, beta = false }: HeaderTitleProps) => {
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-      <span style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--color-text-primary)' }}>
+    <div className="flex items-baseline space-x-2">
+      <h1 className="text-xl font-bold text-gradient animate-fade-in">
         {title}
-      </span>
+      </h1>
       {beta && (
-        <span style={{
-          fontSize: '0.75rem',
-          fontWeight: '600',
-          color: '#ea580c',
-          backgroundColor: '#fff7ed',
-          padding: '1px 5px',
-          borderRadius: '4px',
-          marginLeft: '-4px'
-        }}>
+        <span className="badge badge-warning animate-pulse">
           Beta
         </span>
       )}
       {appVersion && (
-        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+        <span className="text-xs text-tertiary font-medium bg-glass-bg px-2 py-1 rounded-full backdrop-blur-sm border border-glass-border">
           v{appVersion}
         </span>
       )}
