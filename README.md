@@ -1,4 +1,4 @@
-If you enjoy The app please buy me a coffee <a href="https://www.buymeacoffee.com/Cfircoo" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+If you enjoy The app please buy me a coffee<a href="https://www.buymeacoffee.com/Cfircoo" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 # AWS SSO Manager
 
 A modern desktop application built with Electron and React for managing AWS SSO sessions and role switching across multiple AWS accounts.
