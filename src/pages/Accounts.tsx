@@ -12,6 +12,7 @@ import { useElectron } from '../contexts/ElectronContext';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ThemeToggle from '../components/ThemeToggle';
+import BuyMeCoffeeButton from '../components/BuyMeCoffeeButton';
 
 const Accounts = () => {
   const navigate = useNavigate();
@@ -394,6 +395,7 @@ const Accounts = () => {
             codeArtifactStatus={initialStatusCheckDone ? codeArtifactStatus : localCodeArtifactStatus}
             onCodeArtifactLogin={handleCodeArtifactLogin}
           />
+          <BuyMeCoffeeButton size="small" />
           <ThemeToggle />
           <button
             onClick={toggleSettings}
