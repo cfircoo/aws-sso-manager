@@ -8,3 +8,5 @@ release/
 node_modules/
 
 */launch.json
+
+.vscode/
