@@ -1,0 +1,142 @@
+# AWS SSO Manager - Project Intelligence
+
+## Project Overview
+AWS SSO Manager is an Electron + React desktop application for managing AWS SSO sessions and role switching. Currently on v1.0.7, working on buy-me-coffee branch.
+
+## Critical Implementation Paths
+
+### AWS Operations
+- ALL AWS SDK operations MUST be in the main process (main.ts)
+- NEVER put AWS credentials in the renderer process
+- Use IPC channels for renderer-main communication
+- Pattern: `ipcMain.handle('channel-name', async (event, args) => {...})`
+
+### State Management
+- Use React Context API (not Redux)
+- Three main contexts: SsoContext, ElectronContext, ThemeContext
+- Contexts are in src/contexts/
+- Components consume contexts via custom hooks
+
+### Component Architecture
+- Use shadcn/ui components (already configured)
+- Components go in src/components/
+- Pages go in src/pages/
+- All components use TypeScript
+
+### Security Patterns
+- Settings stored via electron-store (encrypted)
+- Implement caching layer to reduce disk I/O
+- Session tokens expire - handle gracefully
+- Browser-based SSO flow only
+
+## User Preferences & Workflow
+
+### Development Preferences
+- Organization: SensiAI
+- Use GitHub MCP server, not CLI commands
+- Avoid playwright or browsing tools
+- Don't create documentation unless asked
+
+### AWS Configuration
+- Regions: dev (eu-central-1), staging/prod (eu-west-1)
+- Always check AWS role before operations
+- Use jq for AWS CLI JSON parsing
+- Never make changes without confirmation
+
+### Memory Bank Usage
+- Always read ALL memory bank files when starting work
+- Update activeContext.md and progress.md frequently
+- Memory bank in /memory-bank/ directory
+
+## Project-Specific Patterns
+
+### File Naming
+- Components: PascalCase (AccountCard.tsx)
+- Utilities: camelCase (formatTimeLeft.ts)
+- Types: interfaces prefix with 'I', types exact name
+
+### Common Commands
+```bash
+# Development
+npm run dev
+
+# Build
+npm run build-mac
+npm run build-win
+
+# Create installer
+npm run make-dmg
+```
+
+### IPC Channel Naming
+- `aws-sso:*` - SSO operations
+- `ecr:*` - ECR operations  
+- `settings:*` - Settings operations
+- `open:*` - External URLs/files
+
+### UI Patterns
+- Three tabs: All, Favorites, Quick Access
+- Session warnings: Yellow <2hr, Red <1hr
+- Always show loading states
+- Use toast notifications (sonner)
+
+## Known Challenges
+
+### Performance
+- Large account lists (100+) cause lag
+- Implement virtual scrolling if needed
+- Cache where possible
+
+### Session Management
+- Tokens expire after ~8 hours
+- Handle expiration gracefully
+- Auto-redirect to login
+
+### Platform Differences
+- Test on both macOS and Windows
+- File paths differ between platforms
+- Use electron's app.getPath()
+
+## Evolution of Decisions
+
+### v1.0.7 Changes
+- Added settings caching (reduced I/O)
+- Fixed console URL generation
+- Improved debug logging
+
+### Current Work (buy-me-coffee)
+- Adding donation functionality
+- Integrating with existing UI
+- Maintaining clean separation
+
+## Tool Usage Patterns
+
+### Terraform (if used)
+- NEVER run apply, only plan/import
+- Use Terragrunt with layers
+- Only one root.hcl file
+
+### Jira Integration
+- Default project: PBAT
+- Default component: DevOps  
+- Always provide ticket URL
+- Valid components: UI/UX, Testing, Product, Platform, Marketing and Branding, IT/Security, Embedded, DevOps, Devices, Data Annotation, CTO, Applications, Analytics, AI/Data
+
+### Confluence
+- Default space: RND
+- DevOps requests under DevOps folder
+- IT requests under IT folder
+- Security under Security folder
+
+## Testing Patterns
+- Test files in __tests__ directories
+- Use Jest and Testing Library
+- Mock AWS SDK calls
+- Test critical user flows
+
+## Build & Release
+- Version in package.json
+- Update CHANGELOG.md
+- Create release notes
+- Test both platforms before release
+- Use GitHub releases for distribution
