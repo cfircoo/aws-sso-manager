@@ -1,11 +1,31 @@
-# Active Context: AWS SSO Manager v2.0.0 Professional
+# Active Context: AWS SSO Manager v2.0.0 Professional Enhanced
 
 ## Current Work Focus
 - **Branch**: sso-manager-v2
-- **Feature**: Version 2.0.0 with Professional Design System Applied
-- **Status**: Successfully tested and running ✅
+- **Feature**: Version 2.0.0 with Professional Design System + Latest Enhancements
+- **Status**: Successfully enhanced and fully functional ✅
 
-## Recent Changes (v2.0.0 Professional)
+## Recent Changes (v2.0.0 Professional Enhanced)
+
+### Latest Session Enhancements ✅ COMPLETED
+1. **Session Timer Fix**
+   - Fixed session timer display showing raw milliseconds instead of HH:MM:SS format
+   - Updated SessionTimer component to use professional design system
+   - Added proper glass card styling with status-based colors (green/yellow/red)
+   - Integrated animated pulse indicator for better visual feedback
+
+2. **Component Consistency Improvements**
+   - Unified Quick Access tab to use same AccountItem component as All/Favorites tabs
+   - Created dedicated RoleItem component for individual role display without account wrapper
+   - Ensured exact button matching across all tabs (6 buttons: Bookmark, Copy, Console, Terminal, K8s, Default)
+   - Maintained consistent styling and functionality across all role interactions
+
+3. **Kubectl Context Management**
+   - Added kubectl context tracking to settings file (AppSettings.kubectlContext)
+   - Automatic context updates when new kubectl context is set via K8s dialog
+   - Enhanced ElectronContext with getCurrentKubectlContext() and updateKubectlContextInSettings()
+   - Added Kubernetes Context section to SettingsForm with real-time display and refresh functionality
+   - Professional blue/purple gradient theme for K8s-related UI elements
 
 ### Design System Overhaul ✅ COMPLETED
 1. **Professional Color Palette Applied**
@@ -114,6 +134,19 @@
 - Suitable for production use
 
 ## Files Created/Modified
+
+### Latest Session (Enhanced Functionality)
+- `src/components/SessionTimer.tsx` - Fixed time formatting and applied professional design
+- `src/components/Header.tsx` - Updated to use SessionTimer component properly
+- `src/components/RoleItem.tsx` - **NEW**: Dedicated component for individual role display
+- `src/components/AccountsList.tsx` - Updated to use RoleItem for Quick Access tab
+- `src/types/store.ts` - Added kubectlContext field to AppSettings interface
+- `src/contexts/ElectronContext.tsx` - Added kubectl context management functions
+- `src/components/KubernetesClustersDialog.tsx` - Added automatic context saving
+- `src/components/SettingsForm.tsx` - Added Kubernetes Context display section
+- `src/components/QuickAccessRoleItem.tsx` - **DELETED**: Replaced with RoleItem for consistency
+
+### Previous Professional Design System
 - `src/index.css` - Professional design system applied
 - `src/components/BuyMeCoffeeButton.tsx` - Professional support button
 - `DESIGN_REVIEW.md` - Comprehensive feature and design analysis

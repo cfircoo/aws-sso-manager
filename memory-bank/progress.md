@@ -19,14 +19,17 @@
 - ✅ Three-tab organization (All, Favorites, Quick Access)
 - ✅ Account counter badges
 - ✅ Loading states and indicators
-- ✅ Session timer with color warnings
-- ✅ Settings dialog
+- ✅ Session timer with proper HH:MM:SS format and professional design
+- ✅ Settings dialog with kubectl context display
 - ✅ Terminal integration
-- ✅ **NEW: Modern glassmorphism design system**
-- ✅ **NEW: Enhanced animations and transitions**
+- ✅ **NEW: Modern glassmorphism design system (professional)**
+- ✅ **NEW: Enhanced animations and transitions (subtle)**
 - ✅ **NEW: Custom toast notifications**
-- ✅ **NEW: Buy Me a Coffee integration**
+- ✅ **NEW: Buy Me a Coffee integration (professional support button)**
 - ✅ **NEW: Recently used regions tracking**
+- ✅ **NEW: Consistent role component across all tabs**
+- ✅ **NEW: Individual role display for Quick Access**
+- ✅ **NEW: Kubectl context tracking and management**
 
 ### Integrations
 - ✅ ECR login functionality
@@ -35,7 +38,9 @@
 - ✅ Multiple region support
 - ✅ **NEW: EKS cluster discovery**
 - ✅ **NEW: Multi-region K8s support**
-- ✅ **NEW: kubectl context management**
+- ✅ **NEW: kubectl context management with automatic saving**
+- ✅ **NEW: kubectl context display in settings**
+- ✅ **NEW: Real-time kubectl context refresh**
 
 ### Platform Support
 - ✅ macOS application (.dmg installer)

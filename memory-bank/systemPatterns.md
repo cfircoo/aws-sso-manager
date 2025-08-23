@@ -41,13 +41,16 @@ The application uses React Context API for global state management:
 - `Callback.tsx` - OAuth callback handler
 
 ### Feature Components
-- `AccountCard.tsx` - Individual account display
+- `AccountCard.tsx` - Individual account display (deprecated in favor of AccountItem)
+- `AccountItem.tsx` - Modern account display with expandable roles
+- `RoleItem.tsx` - **NEW**: Individual role display for Quick Access tab
 - `RoleSelector.tsx` - Role selection interface
 - `QuickAccess.tsx` - Quick role switching
 - `Terminal.tsx` - Integrated terminal for AWS CLI
-- `SettingsForm.tsx` - Application configuration
-- `KubernetesClustersDialog.tsx` - EKS cluster management
-- `BuyMeCoffeeButton.tsx` - Donation support component
+- `SettingsForm.tsx` - Application configuration with kubectl context display
+- `KubernetesClustersDialog.tsx` - EKS cluster management with auto-context saving
+- `BuyMeCoffeeButton.tsx` - Professional donation support component
+- `SessionTimer.tsx` - **ENHANCED**: Professional session timer with HH:MM:SS format
 
 ### UI Components
 Leveraging shadcn/ui for consistent design:
@@ -70,7 +73,9 @@ User Action → React Component → Electron IPC → AWS SDK → SSO Service
 ### Settings Management
 - Persistent storage using `electron-store`
 - Cached in memory to reduce disk I/O
-- Settings include: SSO config, favorites, quick access roles
+- Settings include: SSO config, favorites, quick access roles, **kubectl context**
+- **NEW**: Automatic kubectl context tracking and updates
+- **NEW**: Real-time context display in settings UI
 
 ## 4. Security Patterns
 
@@ -113,13 +118,14 @@ User Action → React Component → Electron IPC → AWS SDK → SSO Service
 
 ### IPC Channels
 Main process exposes these channels:
-- `aws-sso:*` - SSO operations
+- `aws-sso:*` - SSO operations (including kubectl context setting)
 - `ecr:*` - ECR operations
 - `codeartifact:*` - CodeArtifact operations
-- `settings:*` - Settings management
+- `settings:*` - Settings management (including kubectl context storage)
 - `open:*` - External URL/file operations
 - `eks:*` - EKS cluster operations
 - `kubectl:*` - kubectl configuration operations
+- **NEW**: Enhanced kubectl context management through existing channels
 
 ### Event-Driven Updates
 - Session timer updates

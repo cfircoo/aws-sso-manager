@@ -40,13 +40,15 @@ AWS SSO Manager provides a desktop application that acts as a centralized hub fo
 
 4. **Advanced Features**
    - Mark frequently used roles as favorites
-   - Set up Quick Access for instant role switching
+   - Set up Quick Access for instant role switching with individual role display
    - Login to ECR repositories with one click
    - Configure CodeArtifact authentication
    - Discover and manage EKS clusters across all regions
-   - Configure kubectl with one click
+   - Configure kubectl with one click and automatic context tracking
    - Track recently used AWS regions
-   - Support development with integrated donation button
+   - Monitor current kubectl context in settings
+   - Support development with integrated professional donation button
+   - Consistent role interaction across all tabs
 
 ## User Experience Goals
 
@@ -71,11 +73,14 @@ AWS SSO Manager provides a desktop application that acts as a centralized hub fo
 ### Visual Clarity
 - Clean, professional interface with subtle glass effects
 - Enhanced dark mode with improved contrast
-- Color-coded session warnings (professional palette)
+- Color-coded session warnings with proper HH:MM:SS time format
 - Smooth but conservative animations
 - Account badges showing available counts
 - Professional indigo-based color scheme
 - Enterprise-ready design language throughout
+- **NEW**: Consistent role display across all tabs
+- **NEW**: Individual role cards for Quick Access
+- **NEW**: Professional kubectl context display in settings
 
 ## Product Principles
 
