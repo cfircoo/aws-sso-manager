@@ -11,7 +11,7 @@ const Footer: React.FC = () => {
       <div className="flex flex-col items-center justify-center space-y-3 text-center">
         {/* Support Button */}
         <div className="mb-2">
-          <BuyMeCoffeeButton size="small" variant="minimal" />
+          <BuyMeCoffeeButton size="medium" variant="coffee" className="animate-pulse hover:animate-none" />
         </div>
         
         {/* Copyright and Author Information */}

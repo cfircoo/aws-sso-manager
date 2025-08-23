@@ -8,6 +8,7 @@ import ThemeToggle from './ThemeToggle';
 import { EcrLoginResponse, CodeArtifactLoginResponse } from '../types/aws';
 import { useSso } from '../contexts/SsoContext';
 import SessionTimer from './SessionTimer';
+import BuyMeCoffeeButton from './BuyMeCoffeeButton';
 
 interface HeaderProps {
   sessionTimeLeft?: string | number | null;
@@ -259,6 +260,9 @@ const Header = ({
               <div className="w-px h-6 bg-gradient-to-b from-transparent via-white/20 to-transparent"></div>
             </>
           )}
+
+          {/* Buy Me Coffee Button */}
+          <BuyMeCoffeeButton size="small" variant="coffee" />
 
           {/* Theme Toggle */}
           <ThemeToggle />
