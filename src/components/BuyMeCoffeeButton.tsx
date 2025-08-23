@@ -129,7 +129,7 @@ const BuyMeCoffeeButton: React.FC<BuyMeCoffeeButtonProps> = ({
       aria-label="Buy me a coffee - Support development"
     >
       <Coffee size={currentSize.iconSize} />
-      <span>Support</span>
+      <span>Support Me</span>
     </button>
   );
 };
