@@ -36,6 +36,10 @@ interface ElectronContextType {
   
   // Shell functions
   openExternal: (url: string) => Promise<void>;
+  
+  // Kubectl context functions
+  getCurrentKubectlContext: () => Promise<string | null>;
+  updateKubectlContextInSettings: (context: string) => Promise<void>;
 }
 
 // Create context with default undefined value
@@ -101,7 +105,8 @@ export const ElectronProvider: React.FC<{ children: ReactNode }> = ({ children }
         codeArtifactAccount: '',
         codeArtifactRole: '',
         codeArtifactDomain: '',
-        codeArtifactRepo: ''
+        codeArtifactRepo: '',
+        kubectlContext: ''
       };
     }
     
@@ -113,7 +118,8 @@ export const ElectronProvider: React.FC<{ children: ReactNode }> = ({ children }
       codeArtifactAccount: await window.electronStore.get<string>('codeArtifactAccount') || '',
       codeArtifactRole: await window.electronStore.get<string>('codeArtifactRole') || '',
       codeArtifactDomain: await window.electronStore.get<string>('codeArtifactDomain') || '',
-      codeArtifactRepo: await window.electronStore.get<string>('codeArtifactRepo') || ''
+      codeArtifactRepo: await window.electronStore.get<string>('codeArtifactRepo') || '',
+      kubectlContext: await window.electronStore.get<string>('kubectlContext') || ''
     };
   };
   
@@ -131,6 +137,9 @@ export const ElectronProvider: React.FC<{ children: ReactNode }> = ({ children }
     await window.electronStore.set('codeArtifactRole', settings.codeArtifactRole);
     await window.electronStore.set('codeArtifactDomain', settings.codeArtifactDomain);
     await window.electronStore.set('codeArtifactRepo', settings.codeArtifactRepo);
+    if (settings.kubectlContext !== undefined) {
+      await window.electronStore.set('kubectlContext', settings.kubectlContext);
+    }
   };
   
   const getDefaultProfile = async () => {
@@ -368,6 +377,30 @@ export const ElectronProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
     return await window.electronShell.openExternal(url);
   };
+
+  // Kubectl context functions
+  const getCurrentKubectlContext = async (): Promise<string | null> => {
+    if (!isElectronAvailable) return null;
+    try {
+      const status = await window.awsSso.checkKubectlStatus();
+      return status.currentContext !== 'None' ? status.currentContext : null;
+    } catch (error) {
+      console.error('Error getting kubectl context:', error);
+      return null;
+    }
+  };
+
+  const updateKubectlContextInSettings = async (context: string): Promise<void> => {
+    if (!isElectronAvailable) return;
+    
+    try {
+      // Update the kubectl context in settings
+      await window.electronStore.set('kubectlContext', context);
+      console.log('Kubectl context updated in settings:', context);
+    } catch (error) {
+      console.error('Error updating kubectl context in settings:', error);
+    }
+  };
   
   const contextValue: ElectronContextType = {
     // Store functions
@@ -402,6 +435,10 @@ export const ElectronProvider: React.FC<{ children: ReactNode }> = ({ children }
     
     // Shell functions
     openExternal,
+    
+    // Kubectl context functions
+    getCurrentKubectlContext,
+    updateKubectlContextInSettings,
   };
   
   return (

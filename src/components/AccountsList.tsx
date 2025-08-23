@@ -1,8 +1,9 @@
-import { AwsAccount } from '../types/aws';
+import { AwsAccount, QuickAccessRole } from '../types/aws';
 import { useState, useMemo } from 'react';
 import { useFavorites } from '../hooks/useFavorites';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
 import AccountItem from './AccountItem';
+import RoleItem from './RoleItem';
 import { Bookmark, Users, Star, Zap } from 'lucide-react';
 
 interface AccountsListProps {
@@ -39,20 +40,10 @@ const AccountsList = ({
     }
   }, [activeTab]);
 
-  // Calculate quick access accounts count (always available)
-  const quickAccessAccountsCount = useMemo(() => {
-    if (quickAccessRoles.length === 0) return 0;
-
-    // Get unique account IDs from quick access roles
-    const quickAccessAccountIds = [...new Set(
-      quickAccessRoles.map(role => role.accountId)
-    )];
-
-    // Count accounts that have quick access roles
-    return accounts.filter(account => 
-      quickAccessAccountIds.includes(account.accountId)
-    ).length;
-  }, [accounts, quickAccessRoles]);
+  // Calculate quick access roles count (always available)
+  const quickAccessRolesCount = useMemo(() => {
+    return quickAccessRoles.length;
+  }, [quickAccessRoles]);
 
   // Find accounts with quick access roles (only when tab is selected)
   const accountsWithQuickAccessRoles = useMemo(() => {
@@ -109,7 +100,7 @@ const AccountsList = ({
     switch (tab) {
       case 'all': return totalAccounts;
       case 'favorites': return accounts.filter(account => isFavorite(account.accountId)).length;
-      case 'quick-access': return quickAccessAccountsCount;
+      case 'quick-access': return quickAccessRolesCount;
       default: return 0;
     }
   };
@@ -149,7 +140,26 @@ const AccountsList = ({
 
       {/* Accounts Container */}
       <div className="flex-1 space-y-1 animate-fade-in">
-        {filteredAccounts.length > 0 ? (
+        {selectedTab === 'quick-access' && quickAccessRoles.length > 0 ? (
+          <div className="space-y-2">
+            {quickAccessRoles.map((role, index) => (
+              <div
+                key={`${role.accountId}-${role.roleName}`}
+                className="animate-slide-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <RoleItem
+                  role={role}
+                  onRoleSelect={onRoleSelect}
+                  onOpenTerminal={onOpenTerminal}
+                  onProfileChanged={onProfileChanged}
+                  accessToken={accessToken}
+                  isDefaultProfile={defaultProfile?.accountId === role.accountId && defaultProfile?.roleName === role.roleName}
+                />
+              </div>
+            ))}
+          </div>
+        ) : filteredAccounts.length > 0 ? (
           <div className="space-y-2">
             {filteredAccounts.map((account, index) => (
               <div
@@ -231,14 +241,22 @@ const AccountsList = ({
       </div>
 
       {/* Status Footer */}
-      {filteredAccounts.length > 0 && (
+      {((selectedTab === 'quick-access' && quickAccessRoles.length > 0) || (selectedTab !== 'quick-access' && filteredAccounts.length > 0)) && (
         <div className="glass-card p-4 animate-slide-in">
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center space-x-4">
               <span className="text-tertiary">
-                Showing <span className="font-medium text-primary">{filteredAccounts.length}</span> account{filteredAccounts.length !== 1 ? 's' : ''}
+                {selectedTab === 'quick-access' ? (
+                  <>
+                    Showing <span className="font-medium text-primary">{quickAccessRoles.length}</span> quick access role{quickAccessRoles.length !== 1 ? 's' : ''}
+                  </>
+                ) : (
+                  <>
+                    Showing <span className="font-medium text-primary">{filteredAccounts.length}</span> account{filteredAccounts.length !== 1 ? 's' : ''}
+                  </>
+                )}
               </span>
-              {searchTerm && (
+              {searchTerm && selectedTab !== 'quick-access' && (
                 <span className="text-muted">
                   matching <span className="font-mono text-primary">"{searchTerm}"</span>
                 </span>

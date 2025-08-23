@@ -10,7 +10,7 @@ import { useSso } from '../contexts/SsoContext';
 import SessionTimer from './SessionTimer';
 
 interface HeaderProps {
-  sessionTimeLeft?: string | null;
+  sessionTimeLeft?: string | number | null;
   isAuthenticated?: boolean;
   onLogout?: () => Promise<void>;
   onSettings?: () => void;
@@ -189,7 +189,7 @@ const Header = ({
 
   const getSessionTimeStatusIcon = () => {
     switch (sessionTimeStatus) {
-      case 'critical': return <Zap className="w-4 h-4 session-icon-critical animate-pulse" />;
+      case 'critical': return <Zap className="w-4 h-4 session-icon-critical " />;
       case 'warning': return <Shield className="w-4 h-4 session-icon-warning" />;
       default: return <Shield className="w-4 h-4 session-icon-normal" />;
     }
@@ -218,15 +218,10 @@ const Header = ({
 
         {/* Center Section - Session Status */}
         {isAuthenticated && sessionTimeLeft && (
-          <div className={`
-            flex items-center space-x-2 px-4 py-2 rounded-full border backdrop-blur-sm
-            transition-all duration-300 ${getSessionTimeStatusClass()}
-          `}>
-            {getSessionTimeStatusIcon()}
-            <span className="text-sm font-medium">
-              Session: {sessionTimeLeft}
-            </span>
-          </div>
+          <SessionTimer 
+            sessionTimeLeft={typeof sessionTimeLeft === 'number' ? sessionTimeLeft.toString() : sessionTimeLeft}
+            sessionTimeStatus={sessionTimeStatus}
+          />
         )}
 
         {/* Right Section - Status & Actions */}

@@ -4,7 +4,7 @@
 AWS SSO Manager
 
 ## Version
-1.0.7
+2.0.0
 
 ## Mission Statement
 A modern desktop application that simplifies AWS Single Sign-On (SSO) session management and role switching across multiple AWS accounts, providing a seamless and intuitive user experience for developers and cloud engineers.
@@ -27,13 +27,16 @@ A modern desktop application that simplifies AWS Single Sign-On (SSO) session ma
    - ECR (Elastic Container Registry) integration
    - CodeArtifact integration
    - Direct AWS Console access for any role with one click
+   - Kubernetes/EKS cluster management and kubectl configuration
 
 4. **User Interface**
-   - Modern and intuitive user interface
-   - Dark mode support
+   - Modern glassmorphism design system with enhanced animations
+   - Dark mode support with improved theming
    - Visual account counter to track available AWS accounts
    - Loading indicators for better user experience
    - Manual refresh button for account list updates
+   - Buy Me a Coffee integration for donation support
+   - Recently used regions tracking for better UX
 
 ### Non-Functional Requirements
 1. **Security**
@@ -70,7 +73,7 @@ A modern desktop application that simplifies AWS Single Sign-On (SSO) session ma
 - Stable application with minimal crashes
 
 ## Current Branch Context
-Currently on "buy-me-coffee" branch - implementing support/donation functionality
+Currently on "sso-manager-v2" branch - major version 2.0.0 with modern UI redesign and Kubernetes integration
 
 ## License
 MIT License with Commons Clause - free to use and modify but cannot be sold commercially without permission

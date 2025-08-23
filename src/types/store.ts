@@ -7,6 +7,7 @@ export interface AppSettings {
   codeArtifactRole: string;
   codeArtifactDomain: string;
   codeArtifactRepo: string;
+  kubectlContext?: string;
   defaultProfile?: {
     accountId: string;
     roleName: string;

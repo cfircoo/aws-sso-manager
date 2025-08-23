@@ -46,12 +46,17 @@ The application uses React Context API for global state management:
 - `QuickAccess.tsx` - Quick role switching
 - `Terminal.tsx` - Integrated terminal for AWS CLI
 - `SettingsForm.tsx` - Application configuration
+- `KubernetesClustersDialog.tsx` - EKS cluster management
+- `BuyMeCoffeeButton.tsx` - Donation support component
 
 ### UI Components
 Leveraging shadcn/ui for consistent design:
 - Pre-built, customizable components
 - Radix UI primitives for accessibility
 - Tailwind CSS for styling
+- **NEW: Portal component for proper modal rendering**
+- **NEW: ModernToaster for toast notifications**
+- **NEW: Footer component with branding**
 
 ## 3. Data Flow Patterns
 
@@ -113,6 +118,8 @@ Main process exposes these channels:
 - `codeartifact:*` - CodeArtifact operations
 - `settings:*` - Settings management
 - `open:*` - External URL/file operations
+- `eks:*` - EKS cluster operations
+- `kubectl:*` - kubectl configuration operations
 
 ### Event-Driven Updates
 - Session timer updates
@@ -141,6 +148,46 @@ App
 - Pages orchestrate component interactions
 - Shared hooks for common operations
 
+## 8. Professional Design System (v2.0.0)
+
+### Professional Color Palette
+- Primary: Indigo (#4F46E5) - trustworthy and professional
+- Secondary: Light Indigo (#6366F1) - complementary accent
+- Success: Emerald (#059669) - muted green for positive states
+- Warning: Amber (#D97706) - less bright than original
+- Error: Red (#DC2626) - standard error color
+
+### Subtle Glass Effects
+- Increased opacity (0.95 vs 0.8) for better readability
+- Reduced blur effects (8px vs 16px)
+- Professional borders and shadows
+- Enterprise-suitable transparency levels
+
+### Conservative Animation Patterns
+- Subtle transitions (0.2s max duration)
+- Simple hover effects (translateY(-1px))
+- No pulse or glow animations
+- Professional loading states
+
+### Typography & Spacing
+- Better contrast ratios for accessibility
+- Consistent font weights and hierarchy
+- Professional spacing system
+- Clean, readable interface
+
+### Component Styling
+```css
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+}
+```
+
 ## Technology Choices Rationale
 
 1. **Electron**: Cross-platform desktop support with native OS integration
@@ -150,3 +197,4 @@ App
 5. **shadcn/ui**: Modern, accessible UI components
 6. **Tailwind CSS**: Utility-first styling approach
 7. **Vite**: Fast development and optimized builds
+8. **@aws-sdk/client-eks**: Native EKS integration for cluster management

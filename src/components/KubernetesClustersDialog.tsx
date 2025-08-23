@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Loader2, CheckCircle, XCircle, Settings, Terminal, RefreshCw, ExternalLink, ArrowLeft, Globe, MapPin, X, Zap, Star, Copy, Check, Box, Clock, Trash2, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRecentlyUsedRegions } from '../hooks/useRecentlyUsedRegions';
+import { useElectron } from '../contexts/ElectronContext';
 
 interface EksCluster {
   name: string;
@@ -78,6 +79,9 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
     getTimeAgo, 
     hasRecentRegions 
   } = useRecentlyUsedRegions();
+  
+  // Electron context for settings management
+  const electron = useElectron();
 
   const showBeautifulToast = (type: 'success' | 'error', title: string, description?: string, clusterId?: string) => {
     if (type === 'success') {
@@ -195,6 +199,11 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
         // Track this region usage for the recently used feature
         trackRegionUsage(region, clusterName, accountId);
         
+        // Update kubectl context in settings
+        if (result.context && electron?.updateKubectlContextInSettings) {
+          await electron.updateKubectlContextInSettings(result.context);
+        }
+        
         showBeautifulToast(
           'success',
           '🎉 kubectl context set successfully!',
@@ -307,7 +316,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     backdropFilter: 'blur(4px)',
     WebkitBackdropFilter: 'blur(4px)',
     zIndex: 99999,
@@ -573,7 +582,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ 
                         padding: '8px',
-                        background: 'linear-gradient(135deg, #10B981, #059669)',
+                        background: 'var(--color-success)',
                         borderRadius: '12px',
                         color: 'white'
                       }}>
@@ -585,7 +594,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ 
                         padding: '8px',
-                        background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                        background: 'var(--color-error)',
                         borderRadius: '12px',
                         color: 'white'
                       }}>
@@ -642,7 +651,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{ 
                           padding: '8px',
-                          background: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
+                          background: 'var(--color-primary)',
                           borderRadius: '12px',
                           color: 'white'
                         }}>
@@ -815,7 +824,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px' }}>
                     <div style={{ 
                       padding: '12px',
-                      background: 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+                      background: 'var(--color-primary)',
                       borderRadius: '16px',
                       color: 'white'
                     }}>
@@ -948,7 +957,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                             alignItems: 'center',
                             gap: '6px',
                             padding: '6px 12px',
-                            background: 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+                            background: 'var(--color-primary)',
                             color: 'white',
                             borderRadius: '12px',
                             fontSize: '14px',
@@ -971,7 +980,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                         alignItems: 'center',
                         gap: '8px',
                         padding: '12px 24px',
-                        background: 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+                        background: 'var(--color-primary)',
                         color: 'white',
                         border: 'none',
                         borderRadius: '12px',
@@ -999,7 +1008,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                     <div style={{ 
                       width: '60px',
                       height: '60px',
-                      background: 'linear-gradient(135deg, #F97316 0%, #DC2626 100%)',
+                      background: 'var(--color-primary)',
                       borderRadius: '50%',
                       display: 'flex',
                       alignItems: 'center',
@@ -1030,7 +1039,7 @@ const KubernetesClustersDialog: React.FC<KubernetesClustersDialogProps> = React.
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ 
                         padding: '8px',
-                        background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                        background: 'var(--color-error)',
                         borderRadius: '12px',
                         color: 'white'
                       }}>

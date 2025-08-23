@@ -6,21 +6,21 @@
 /* ============ MODERN DESIGN SYSTEM ============ */
 
 :root {
-  /* === PROFESSIONAL COLORS === */
-  --color-primary: #4F46E5;
-  --color-primary-hover: #4338CA;
-  --color-primary-light: #EEF2FF;
-  --color-secondary: #6366F1;
-  --color-accent: #EC4899;
-  --color-accent-hover: #DB2777;
-  --color-success: #059669;
-  --color-warning: #D97706;
-  --color-error: #DC2626;
+  /* === LIGHT MODE (DAY) COLORS === */
+  --color-primary: #f97316;
+  --color-primary-hover: #ea580c;
+  --color-primary-light: #fff7ed;
+  --color-secondary: #dc2626;
+  --color-accent: #f59e0b;
+  --color-accent-hover: #d97706;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
   
   /* === LIGHT MODE SURFACES === */
-  --glass-bg: rgba(255, 255, 255, 0.95);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-hover: rgba(0, 0, 0, 0.02);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --glass-hover: rgba(0, 0, 0, 0.05);
   --bg-primary: #ffffff;
   --bg-secondary: #f8fafc;
   --bg-surface: #f1f5f9;
@@ -39,12 +39,12 @@
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   
   /* === SHARED EFFECTS === */
-  --shadow-glow: 0 0 16px rgba(79, 70, 229, 0.15);
+  --shadow-glow: 0 0 32px rgba(249, 115, 22, 0.3);
   
   /* === BORDERS === */
   --border-primary: rgba(148, 163, 184, 0.1);
   --border-secondary: rgba(148, 163, 184, 0.05);
-  --border-accent: rgba(79, 70, 229, 0.2);
+  --border-accent: rgba(249, 115, 22, 0.3);
   
   /* === ANIMATIONS === */
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -109,11 +109,11 @@ html {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: var(--bg-primary);
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: auto;
-  transition: background-color var(--transition-smooth), color var(--transition-smooth);
+  transition: all var(--transition-smooth);
 }
 
 /* Prevent body scroll when modal is open */
@@ -133,13 +133,13 @@ body.modal-open {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--text-tertiary);
+  background: linear-gradient(45deg, var(--color-primary), var(--color-secondary));
   border-radius: var(--radius-sm);
   transition: background var(--transition-fast);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background: linear-gradient(45deg, var(--color-primary-hover), var(--color-secondary));
 }
 
 /* ============ MODERN COMPONENTS ============ */

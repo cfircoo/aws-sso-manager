@@ -9,6 +9,8 @@ AWS developers and engineers working with multiple AWS accounts face significant
 - Accessing frequently used roles quickly
 - Keeping track of which account/role they're currently using
 - Managing ECR and CodeArtifact authentication across accounts
+- Configuring kubectl for multiple EKS clusters across regions
+- Switching between Kubernetes contexts efficiently
 
 Traditional methods (AWS CLI, web console) are cumbersome for frequent role switching and don't provide a unified experience.
 
@@ -41,6 +43,10 @@ AWS SSO Manager provides a desktop application that acts as a centralized hub fo
    - Set up Quick Access for instant role switching
    - Login to ECR repositories with one click
    - Configure CodeArtifact authentication
+   - Discover and manage EKS clusters across all regions
+   - Configure kubectl with one click
+   - Track recently used AWS regions
+   - Support development with integrated donation button
 
 ## User Experience Goals
 
@@ -63,11 +69,13 @@ AWS SSO Manager provides a desktop application that acts as a centralized hub fo
 - Graceful handling of expired sessions
 
 ### Visual Clarity
-- Clean, modern interface
-- Dark mode for reduced eye strain
-- Color-coded session warnings
-- Loading states for all operations
+- Clean, professional interface with subtle glass effects
+- Enhanced dark mode with improved contrast
+- Color-coded session warnings (professional palette)
+- Smooth but conservative animations
 - Account badges showing available counts
+- Professional indigo-based color scheme
+- Enterprise-ready design language throughout
 
 ## Product Principles
 
