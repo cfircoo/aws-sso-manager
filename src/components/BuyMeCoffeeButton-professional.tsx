@@ -4,7 +4,7 @@ import { useElectron } from '../contexts/ElectronContext';
 
 interface BuyMeCoffeeButtonProps {
   size?: 'small' | 'medium' | 'large';
-  variant?: 'primary' | 'secondary' | 'minimal' | 'coffee';
+  variant?: 'primary' | 'secondary' | 'minimal';
   className?: string;
 }
 
@@ -82,17 +82,6 @@ const BuyMeCoffeeButton: React.FC<BuyMeCoffeeButtonProps> = ({
         borderColor: 'var(--border-primary)',
         transform: 'translateY(-1px)'
       }
-    },
-    coffee: {
-      background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 50%, #FFD700 100%)',
-      color: 'white',
-      border: 'none',
-      boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)',
-      hover: {
-        background: 'linear-gradient(135deg, #FF5722 0%, #FF8F00 50%, #FFC107 100%)',
-        transform: 'translateY(-2px) scale(1.05)',
-        boxShadow: '0 8px 25px rgba(255, 107, 53, 0.4)'
-      }
     }
   };
 
@@ -129,7 +118,7 @@ const BuyMeCoffeeButton: React.FC<BuyMeCoffeeButtonProps> = ({
       aria-label="Buy me a coffee - Support development"
     >
       <Coffee size={currentSize.iconSize} />
-      <span>Support Me</span>
+      <span>Support</span>
     </button>
   );
 };

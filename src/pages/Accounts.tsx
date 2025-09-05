@@ -9,10 +9,12 @@ import CodeArtifactStatus from '../components/CodeArtifactStatus';
 import EcrStatus from '../components/EcrStatus';
 import { SettingsForm } from '../components/SettingsForm';
 import { useElectron } from '../contexts/ElectronContext';
-import { RefreshCw, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import ThemeToggle from '../components/ThemeToggle';
-import BuyMeCoffeeButton from '../components/BuyMeCoffeeButton';
+import { RefreshCw, Loader2, AlertCircle } from 'lucide-react';
+import { showToast } from '../components/toast';
+import Header from '../components/Header';
+import SearchBar from '../components/SearchBar';
+import Footer from '../components/Footer';
+import Portal from '../components/Portal';
 
 const Accounts = () => {
   const navigate = useNavigate();
@@ -85,6 +87,9 @@ const Accounts = () => {
   const [initialStatusCheckDone, setInitialStatusCheckDone] = useState(false);
   const [isEcrLoggingIn, setIsEcrLoggingIn] = useState(false);
   const [initialAuthCheckDone, setInitialAuthCheckDone] = useState(false);
+
+  // Get default profile from app settings
+  const defaultProfile = appSettings?.defaultProfile;
 
   // Initialize local ECR status from context
   useEffect(() => {
@@ -345,6 +350,12 @@ const Accounts = () => {
     setShowSettings(!showSettings);
   };
 
+  // Handle profile change (refresh default profile info)
+  const handleProfileChanged = () => {
+    console.log('Profile changed - refreshing default profile info');
+    // You could add additional logic here if needed to refresh profile data
+  };
+
   // Handle account list refresh
   const handleRefreshAccounts = async () => {
     if (isRefreshingAccounts || !queries?.accounts?.refetch) return;
@@ -353,218 +364,160 @@ const Accounts = () => {
       setIsRefreshingAccounts(true);
       await queries.accounts.refetch();
       console.log('Accounts: Successfully refreshed account list');
-      toast.success('Account list refreshed successfully');
+      showToast.success('Account list refreshed successfully', 'Your AWS accounts have been updated with the latest information.');
     } catch (error) {
       console.error('Error refreshing accounts:', error);
-      toast.error('Failed to refresh accounts. Please try again.');
+      showToast.error('Failed to refresh accounts', 'Please check your connection and try again.');
     } finally {
       setIsRefreshingAccounts(false);
     }
   };
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column',
-      height: '100vh',
-      overflow: 'hidden'
-    }}>
-      <div style={{ 
-        padding: '8px 16px',
-        borderBottom: '1px solid var(--color-border)',
-        backgroundColor: 'var(--color-bg-secondary)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <HeaderTitle title="AWS SSO Manager" beta={true} appVersion={appVersion} />
-          <SessionTimer 
-            sessionTimeLeft={sessionTimeLeft ? String(sessionTimeLeft) : null}
-            sessionTimeStatus={sessionTimeStatus}
-            onRenewSession={handleRenewSession}
-          />
+    <div className="min-h-screen bg-gradient-to-br from-bg-primary via-bg-secondary to-bg-primary">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 right-20 w-64 h-64 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 left-20 w-48 h-48 bg-gradient-to-br from-accent/10 to-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto p-6 space-y-6">
+        {/* Header Component */}
+        <Header 
+          sessionTimeLeft={sessionTimeLeft} 
+          isAuthenticated={isAuthenticated}
+          onLogout={handleLogout}
+          onSettings={toggleSettings}
+          ecrStatus={localEcrStatus}
+          codeArtifactStatus={codeArtifactStatus}
+          appVersion={appVersion}
+          sessionTimeStatus={sessionTimeStatus}
+        />
+
+        {/* Action Bar */}
+        <div className="glass-card p-4 animate-slide-in">
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+            {/* Search Bar */}
+            <div className="flex-1 min-w-0">
+              <SearchBar
+                searchTerm={searchQuery}
+                onSearchChange={setSearchQuery}
+                placeholder="Search accounts and roles..."
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Refresh Button */}
+              <button
+                onClick={handleRefreshAccounts}
+                disabled={isRefreshingAccounts}
+                className={`
+                  btn-secondary p-3 hover:scale-110 transition-all duration-200
+                  ${isRefreshingAccounts ? '' : 'hover:text-accent'}
+                `}
+                title="Refresh Accounts"
+              >
+                <RefreshCw className={`w-5 h-5 ${isRefreshingAccounts ? 'animate-spin' : ''}`} />
+              </button>
+
+              {/* Renew Session Button */}
+              <button
+                onClick={handleRenewSession}
+                disabled={isRenewingSession}
+                className={`
+                  btn-primary px-4 py-3 hover:scale-105 transition-all duration-200
+                  ${sessionTimeStatus === 'critical' ? 'animate-pulse' : ''}
+                `}
+                title="Renew Session"
+              >
+                {isRenewingSession ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Renewing...</span>
+                  </div>
+                ) : (
+                  <span>Renew Session</span>
+                )}
+              </button>
+
+
+            </div>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <EcrStatus 
-            ecrStatus={isEcrLoggingIn ? localEcrStatus : ecrStatus}
-            onEcrLogin={handleEcrLogin}
-            isAuthenticated={isAuthenticated}
-          />
-          <CodeArtifactStatus 
-            codeArtifactStatus={initialStatusCheckDone ? codeArtifactStatus : localCodeArtifactStatus}
-            onCodeArtifactLogin={handleCodeArtifactLogin}
-          />
-          <BuyMeCoffeeButton size="small" />
-          <ThemeToggle />
-          <button
-            onClick={toggleSettings}
-            style={{
-              padding: '6px 12px',
-              backgroundColor: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '4px',
-              fontSize: '0.875rem',
-              color: 'var(--color-text-primary)',
-              cursor: 'pointer'
-            }}
-          >
-            Settings
-          </button>
+
+        {/* Main Content Area */}
+        <div className="grid grid-cols-1 gap-6">
+          {/* Accounts List */}
+          <div className="animate-fade-in">
+            {queries?.accounts?.isLoading ? (
+              <div className="glass-card flex items-center justify-center py-16">
+                <div className="flex items-center space-x-3">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <span className="text-primary font-medium">Loading your AWS accounts...</span>
+                </div>
+              </div>
+            ) : queries?.accounts?.error ? (
+              <div className="glass-card p-8 text-center">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
+                  <AlertCircle className="w-8 h-8 text-red-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-primary mb-2">Failed to Load Accounts</h3>
+                <p className="text-tertiary mb-4">
+                  {queries.accounts.error.message || 'An unexpected error occurred'}
+                </p>
+                <button
+                  onClick={handleRefreshAccounts}
+                  className="btn-primary hover:scale-105 transition-all duration-200"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : (
+                             <AccountsList
+                 accounts={queries?.accounts?.data || []}
+                 onRoleSelect={handleRoleSelect}
+                 onOpenTerminal={handleOpenTerminal}
+                 defaultProfile={defaultProfile}
+                 onProfileChanged={handleProfileChanged}
+                 searchTerm={searchQuery}
+                 accessToken={accessToken}
+                 totalAccounts={queries?.accounts?.data?.length}
+               />
+            )}
+          </div>
         </div>
       </div>
-      
-      {showSettings && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'var(--color-bg-secondary)',
-            borderRadius: '8px',
-            boxShadow: '0 4px 6px var(--color-shadow)',
-            width: '90%',
-            maxWidth: '600px',
-            maxHeight: '80vh',
-            overflow: 'auto',
-            padding: '24px'
-          }}>
-            <SettingsForm 
-              onClose={toggleSettings} 
-              onLogout={handleLogout}
-              isAuthenticated={isAuthenticated}
-            />
-          </div>
-        </div>
-      )}
-      
-      <main style={{ 
-        flex: 1, 
-        overflow: 'auto', 
-        padding: '20px',
-        position: 'relative'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '12px',
-          marginBottom: '20px' 
-        }}>
-          <button
-            onClick={handleRefreshAccounts}
-            disabled={isRefreshingAccounts}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              background: 'none',
-              border: '1px solid var(--color-border)',
-              borderRadius: '4px',
-              cursor: isRefreshingAccounts ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              opacity: isRefreshingAccounts ? 0.7 : 1,
-              whiteSpace: 'nowrap',
-              color: 'var(--color-text-primary)'
-            }}
-            title="Refresh account list"
-          >
-            {isRefreshingAccounts ? (
-              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }} />
-            ) : (
-              <RefreshCw size={16} />
-            )}
-            <span>{isRefreshingAccounts ? 'Refreshing...' : 'Refresh Accounts'}</span>
-          </button>
-          
-          <input
-            type="text"
-            placeholder="Search accounts..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px',
-              border: '1px solid var(--color-border)',
-              borderRadius: '4px',
-              backgroundColor: 'var(--color-bg-secondary)',
-              color: 'var(--color-text-primary)'
-            }}
-          />
-        </div>
-        
-        <AccountsList 
-          accounts={queries?.accounts?.data || []}
-          onRoleSelect={handleRoleSelect}
-          onOpenTerminal={handleOpenTerminal}
-          defaultProfile={appSettings?.defaultProfile ?? undefined}
-          onProfileChanged={() => console.log('Profile changed')}
-          searchTerm={searchQuery}
-          accessToken={accessToken}
-          totalAccounts={queries?.accounts?.data?.length || 0}
-        />
-        
-        {/* Add loading indicator while accounts are being loaded */}
-        {queries?.accounts?.isLoading && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '16px',
-            backgroundColor: 'var(--color-bg-secondary)',
-            padding: '24px',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px var(--color-shadow)',
-            zIndex: 5
-          }}>
-            <Loader2 size={36} style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }} />
-            <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>Loading AWS Accounts...</div>
-          </div>
-        )}
-      </main>
-      
-      {/* Terminal component is kept for backward compatibility but is no longer used */}
-      {/* It's better to use the native terminal through Electron */}
+
+      {/* Terminal Modal */}
       {showTerminal && selectedAccount && (
-        <div style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '300px',
-          zIndex: 10
-        }}>
-          <Terminal
-            credentials={selectedAccount.credentials}
-            accountId={selectedAccount.accountId}
-            roleName={selectedAccount.roleName}
-            onClose={() => setShowTerminal(false)}
-          />
-        </div>
+        <Portal>
+          <div className="modal-backdrop fixed inset-0 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
+            <div className="w-full max-w-6xl max-h-[90vh] modal-glass-enhanced modal-content-enhanced overflow-hidden">
+              <Terminal
+                accountId={selectedAccount.accountId}
+                roleName={selectedAccount.roleName}
+                credentials={selectedAccount.credentials}
+                onClose={() => setShowTerminal(false)}
+              />
+            </div>
+          </div>
+        </Portal>
       )}
-      
-      <footer style={{
-        padding: '8px 16px',
-        borderTop: '1px solid var(--color-border)',
-        backgroundColor: 'var(--color-bg-secondary)',
-        textAlign: 'center',
-        fontSize: '0.75rem',
-        color: 'var(--color-text-secondary)'
-      }}>
-        Author: Carmeli Cfir , contact: cfir@carmeli.me | All copyrights reserved to Cfir Carmeli
-      </footer>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <Portal>
+          <div className="modal-backdrop fixed inset-0 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-auto modal-glass-enhanced modal-content-enhanced">
+              <SettingsForm onClose={toggleSettings} />
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {/* Copyright Footer */}
+      <Footer />
     </div>
   );
 };

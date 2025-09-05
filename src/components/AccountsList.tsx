@@ -1,10 +1,10 @@
-import { AwsAccount, AwsRole } from '../types/aws';
+import { AwsAccount, QuickAccessRole } from '../types/aws';
 import { useState, useMemo } from 'react';
 import { useFavorites } from '../hooks/useFavorites';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
 import AccountItem from './AccountItem';
-import { Bookmark, Terminal, Copy, Check, ExternalLink } from 'lucide-react';
-import { useSsoPortalUrl } from './common/SsoPortalUrl';
+import RoleItem from './RoleItem';
+import { Bookmark, Users, Star, Zap } from 'lucide-react';
 
 interface AccountsListProps {
   accounts: AwsAccount[];
@@ -31,96 +31,7 @@ const AccountsList = ({
 }: AccountsListProps) => {
   const [selectedTab, setSelectedTab] = useState<'all' | 'favorites' | 'quick-access'>('all');
   const { favorites, toggleFavorite, isFavorite } = useFavorites();
-  const { quickAccessRoles, toggleQuickAccess } = useQuickAccessRoles();
-  const [showCredentials, setShowCredentials] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
-  const [credentials, setCredentials] = useState<any>(null);
-  const [isLoadingCreds, setIsLoadingCreds] = useState(false);
-
-  // Get the SSO URL generator function
-  const generateSsoPortalUrl = useSsoPortalUrl();
-
-  // Add handleCopyCredentials function
-  const handleCopyCredentials = async (accountId: string, roleName: string) => {
-    try {
-      setIsLoadingCreds(true);
-      setSelectedRole(roleName);
-      
-      if (!accessToken) throw new Error('No access token');
-      
-      // Get the role credentials
-      const result = await window.awsSso.getRoleCredentials(accessToken, accountId, roleName);
-      
-      if (result && result.accessKeyId) {
-        setCredentials({
-          accessKeyId: result.accessKeyId,
-          secretAccessKey: result.secretAccessKey,
-          sessionToken: result.sessionToken,
-          expiration: new Date(result.expiration).toLocaleString()
-        });
-        setShowCredentials(true);
-      } else {
-        throw new Error('No credentials returned');
-      }
-    } catch (err) {
-      console.error('Error getting credentials:', err);
-      alert('Failed to get credentials: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    } finally {
-      setIsLoadingCreds(false);
-    }
-  };
-
-  // Add copyToClipboard helper function
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        console.log('Copied to clipboard');
-        alert('Copied to clipboard');
-      })
-      .catch(err => {
-        console.error('Failed to copy:', err);
-        alert('Failed to copy to clipboard');
-      });
-  };
-
-  // Handle setting default profile
-  const handleSetDefaultProfile = async (accountId: string, roleName: string) => {
-    try {
-      // Use only window.awsSso to avoid TypeScript errors
-      if (window.awsSso && window.awsSso.setDefaultProfile) {
-        const result = await window.awsSso.setDefaultProfile(accountId, roleName);
-        if (result.success) {
-          alert(`Default profile updated successfully:\nAccount: ${accountId}\nRole: ${roleName}`);
-          if (onProfileChanged) onProfileChanged();
-        } else {
-          alert(`Failed to update default profile: ${result.message || 'Unknown error'}`);
-        }
-      } else {
-        console.error('setDefaultProfile method not available');
-        alert('Error: Profile update functionality not available.');
-      }
-    } catch (err) {
-      console.error('Error setting default profile:', err);
-      alert(`Error setting default profile: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  };
-
-  // Function to open AWS Console with the selected role
-  const handleOpenAwsConsole = async (accountId: string, roleName: string) => {
-    try {
-      if (!accessToken) throw new Error('No access token');
-      
-      // Use the SSO portal URL generator function
-      const ssoPortalUrl = generateSsoPortalUrl(accountId, roleName);
-      
-      // Open AWS Console in a new tab
-      window.open(ssoPortalUrl, '_blank');
-      
-    } catch (err) {
-      console.error('Error opening AWS Console:', err);
-      alert('Failed to open AWS Console: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    }
-  };
+  const { quickAccessRoles } = useQuickAccessRoles();
 
   // Update selectedTab when activeTab changes
   useMemo(() => {
@@ -129,7 +40,12 @@ const AccountsList = ({
     }
   }, [activeTab]);
 
-  // Find accounts with quick access roles
+  // Calculate quick access roles count (always available)
+  const quickAccessRolesCount = useMemo(() => {
+    return quickAccessRoles.length;
+  }, [quickAccessRoles]);
+
+  // Find accounts with quick access roles (only when tab is selected)
   const accountsWithQuickAccessRoles = useMemo(() => {
     if (selectedTab !== 'quick-access' || quickAccessRoles.length === 0) {
       return [];
@@ -144,23 +60,6 @@ const AccountsList = ({
     return accounts.filter(account => 
       quickAccessAccountIds.includes(account.accountId)
     );
-  }, [accounts, selectedTab, quickAccessRoles]);
-
-  // Create a flat list of quick access roles with account info
-  const flatQuickAccessRoles = useMemo(() => {
-    if (selectedTab !== 'quick-access' || quickAccessRoles.length === 0) {
-      return [];
-    }
-
-    return quickAccessRoles.map(role => {
-      // Find the corresponding account to get additional info
-      const account = accounts.find(acc => acc.accountId === role.accountId);
-      
-      return {
-        ...role,
-        accountName: account?.accountName || role.accountName || role.accountId
-      };
-    });
   }, [accounts, selectedTab, quickAccessRoles]);
 
   // Filter accounts based on search term and selected tab
@@ -188,489 +87,186 @@ const AccountsList = ({
     );
   }, [accounts, accountsWithQuickAccessRoles, searchTerm, selectedTab, isFavorite]);
 
-  // Filter flat quick access roles based on search term
-  const filteredQuickAccessRoles = useMemo(() => {
-    if (selectedTab !== 'quick-access' || flatQuickAccessRoles.length === 0) {
-      return flatQuickAccessRoles;
+  const getTabIcon = (tab: string) => {
+    switch (tab) {
+      case 'all': return <Users className="w-4 h-4" />;
+      case 'favorites': return <Star className="w-4 h-4" />;
+      case 'quick-access': return <Zap className="w-4 h-4" />;
+      default: return null;
     }
-    
-    if (!searchTerm) return flatQuickAccessRoles;
-    
-    const lowerCaseSearch = searchTerm.toLowerCase();
-    
-    return flatQuickAccessRoles.filter(role => 
-      role.roleName.toLowerCase().includes(lowerCaseSearch) ||
-      role.accountName?.toLowerCase().includes(lowerCaseSearch) ||
-      role.accountId.toLowerCase().includes(lowerCaseSearch)
-    );
-  }, [flatQuickAccessRoles, searchTerm, selectedTab]);
+  };
+
+  const getTabCount = (tab: string) => {
+    switch (tab) {
+      case 'all': return totalAccounts;
+      case 'favorites': return accounts.filter(account => isFavorite(account.accountId)).length;
+      case 'quick-access': return quickAccessRolesCount;
+      default: return 0;
+    }
+  };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%'
-    }}>
-      {/* Tabs */}
-      <div style={{
-        display: 'flex',
-        gap: '24px',
-        borderBottom: '1px solid var(--color-border)',
-        marginBottom: '8px'
-      }}>
-        <button
-          onClick={() => setSelectedTab('all')}
-          style={{
-            padding: '8px 0',
-            background: 'none',
-            border: 'none',
-            borderBottom: selectedTab === 'all' ? `2px solid var(--color-accent)` : '2px solid transparent',
-            color: selectedTab === 'all' ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-            fontSize: '14px',
-            cursor: 'pointer',
-            marginBottom: '-1px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
-        >
-          <span>All Accounts</span>
-          {totalAccounts !== undefined && (
-            <span style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: selectedTab === 'all' ? 'var(--color-accent)' : 'var(--color-border)',
-              color: selectedTab === 'all' ? 'white' : 'var(--color-text-secondary)',
-              borderRadius: '50%',
-              width: '20px',
-              height: '20px',
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}>
-              {totalAccounts}
-            </span>
-          )}
-        </button>
-        
-        <button
-          onClick={() => setSelectedTab('favorites')}
-          style={{
-            padding: '8px 0',
-            background: 'none',
-            border: 'none',
-            borderBottom: selectedTab === 'favorites' ? `2px solid var(--color-accent)` : '2px solid transparent',
-            color: selectedTab === 'favorites' ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-            fontSize: '14px',
-            cursor: 'pointer',
-            marginBottom: '-1px'
-          }}
-        >
-          Favorites
-        </button>
-        <button
-          onClick={() => setSelectedTab('quick-access')}
-          style={{
-            padding: '8px 0',
-            background: 'none',
-            border: 'none',
-            borderBottom: selectedTab === 'quick-access' ? `2px solid var(--color-accent)` : '2px solid transparent',
-            color: selectedTab === 'quick-access' ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-            fontSize: '14px',
-            cursor: 'pointer',
-            marginBottom: '-1px'
-          }}
-        >
-          Quick Access
-        </button>
+    <div className="flex flex-col h-full space-y-6">
+      {/* Modern Tabs */}
+      <div className="glass-card p-2 animate-slide-in">
+        <div className="flex space-x-1">
+          {[
+            { key: 'all', label: 'All Accounts', icon: Users },
+            { key: 'favorites', label: 'Favorites', icon: Star },
+            { key: 'quick-access', label: 'Quick Access', icon: Zap }
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setSelectedTab(key as any)}
+              className={`
+                tab-button
+                ${selectedTab === key ? 'tab-button-active' : 'tab-button-inactive'}
+              `}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{label}</span>
+              {getTabCount(key) !== undefined && (
+                <span className={`
+                  tab-badge
+                  ${selectedTab === key ? 'tab-badge-active' : 'tab-badge-inactive'}
+                `}>
+                  {getTabCount(key)}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Account or Role List */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        overflowY: 'auto'
-      }}>
-        {selectedTab === 'quick-access' ? (
-          // Flat list of quick access roles
-          filteredQuickAccessRoles.length > 0 ? (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              gap: '8px',
-              padding: '8px 0'
-            }}>
-              {filteredQuickAccessRoles.map((role) => (
-                <div 
-                  key={`${role.accountId}-${role.roleName}`}
-                  style={{
-                    backgroundColor: 'var(--color-bg-secondary)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                      {role.accountName}
-                      <span style={{ fontSize: '0.9em', color: 'var(--color-text-secondary)' }}>({role.accountId})</span>
-                      {' - '}
-                      <span style={{ fontWeight: 'bold' }}>{role.roleName}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={() => toggleQuickAccess(role.accountId, role.roleName)}
-                      title="Remove from Quick Access"
-                      style={{
-                        backgroundColor: 'transparent',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--color-accent)'
-                      }}
-                    >
-                      <Bookmark 
-                        size={16} 
-                        fill="currentColor"
-                      />
-                    </button>
-                    <button
-                      onClick={() => handleCopyCredentials(role.accountId, role.roleName)}
-                      title="Copy Credentials"
-                      style={{
-                        backgroundColor: 'transparent',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Copy size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleOpenAwsConsole(role.accountId, role.roleName)}
-                      title="Open AWS Console"
-                      style={{
-                        backgroundColor: 'var(--color-accent)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <ExternalLink size={16} />
-                    </button>
-                    <button
-                      onClick={() => onOpenTerminal(role.accountId, role.roleName, false)}
-                      title="Open Built-in Terminal"
-                      style={{
-                        backgroundColor: '#7e57c2',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Terminal size={16} />
-                    </button>
-                    <button
-                      onClick={() => onOpenTerminal(role.accountId, role.roleName, true)}
-                      title="Open External Terminal"
-                      style={{
-                        backgroundColor: '#2e7d32',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Terminal size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleSetDefaultProfile(role.accountId, role.roleName)}
-                      title="Set as Default Profile"
-                      style={{
-                        backgroundColor: 'transparent',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Check size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{
-              textAlign: 'center',
-              padding: '32px',
-              color: 'var(--color-text-secondary)'
-            }}>
-              <div>
-                <Bookmark size={48} style={{ opacity: 0.3, margin: '0 auto 20px' }} />
-                <p>No quick access roles yet.</p>
-                <p>Click the bookmark icon next to a role to add it to quick access.</p>
+      {/* Accounts Container */}
+      <div className="flex-1 space-y-1 animate-fade-in">
+        {selectedTab === 'quick-access' && quickAccessRoles.length > 0 ? (
+          <div className="space-y-2">
+            {quickAccessRoles.map((role, index) => (
+              <div
+                key={`${role.accountId}-${role.roleName}`}
+                className="animate-slide-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <RoleItem
+                  role={role}
+                  onRoleSelect={onRoleSelect}
+                  onOpenTerminal={onOpenTerminal}
+                  onProfileChanged={onProfileChanged}
+                  accessToken={accessToken}
+                  isDefaultProfile={defaultProfile?.accountId === role.accountId && defaultProfile?.roleName === role.roleName}
+                />
               </div>
-            </div>
-          )
-        ) : (
-          // Regular account list for other tabs
-          <>
-            {filteredAccounts.map((account) => (
-              <AccountItem
-                key={account.accountId}
-                account={account}
-                isFavorite={isFavorite(account.accountId)}
-                toggleFavorite={toggleFavorite}
-                onRoleSelect={onRoleSelect}
-                onOpenTerminal={onOpenTerminal}
-                onProfileChanged={onProfileChanged}
-                isDefaultProfile={defaultProfile?.accountId === account.accountId}
-                accessToken={accessToken}
-                activeTab={selectedTab}
-              />
             ))}
-
-            {filteredAccounts.length === 0 && (
-              <div style={{
-                textAlign: 'center',
-                padding: '32px',
-                color: 'var(--color-text-secondary)'
-              }}>
-                {searchTerm ? (
-                  <p>No accounts found matching "{searchTerm}"</p>
-                ) : selectedTab === 'favorites' ? (
-                  <p>No favorite accounts yet. Click the star icon to add accounts to your favorites.</p>
-                ) : (
-                  <p>No accounts available</p>
-                )}
+          </div>
+        ) : filteredAccounts.length > 0 ? (
+          <div className="space-y-2">
+            {filteredAccounts.map((account, index) => (
+              <div
+                key={account.accountId}
+                className="animate-slide-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <AccountItem
+                  account={account}
+                  isFavorite={isFavorite(account.accountId)}
+                  toggleFavorite={(accountId, accountName) => toggleFavorite(accountId, accountName)}
+                  onRoleSelect={onRoleSelect}
+                  onOpenTerminal={onOpenTerminal}
+                  onProfileChanged={onProfileChanged}
+                  isDefaultProfile={defaultProfile?.accountId === account.accountId}
+                  accessToken={accessToken}
+                  activeTab={selectedTab}
+                />
               </div>
+            ))}
+          </div>
+        ) : (
+          <div className="glass-card flex flex-col items-center justify-center py-16 text-center space-y-4 animate-fade-in">
+            {searchTerm ? (
+              <>
+                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center mb-4">
+                  <Users className="w-8 h-8 text-tertiary" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-primary">No Results Found</h3>
+                  <p className="text-tertiary max-w-md">
+                    No accounts found matching <span className="font-mono text-primary">"{searchTerm}"</span>
+                  </p>
+                  <p className="text-sm text-muted">Try adjusting your search terms or browse all accounts.</p>
+                </div>
+              </>
+            ) : selectedTab === 'favorites' ? (
+              <>
+                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-yellow-400/20 to-orange-400/20 flex items-center justify-center mb-4">
+                  <Star className="w-8 h-8 text-yellow-400" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-primary">No Favorites Yet</h3>
+                  <p className="text-tertiary max-w-md">
+                    Mark accounts as favorites by clicking the star icon to access them quickly.
+                  </p>
+                  <p className="text-sm text-muted">Your favorite accounts will appear here for easy access.</p>
+                </div>
+              </>
+            ) : selectedTab === 'quick-access' ? (
+              <>
+                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-cyan-400/20 to-blue-400/20 flex items-center justify-center mb-4">
+                  <Bookmark className="w-8 h-8 text-cyan-400" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-primary">No Quick Access Roles</h3>
+                  <p className="text-tertiary max-w-md">
+                    Add roles to quick access by clicking the bookmark icon next to any role.
+                  </p>
+                  <p className="text-sm text-muted">Quick access roles provide instant access to your most-used roles.</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center mb-4">
+                  <Users className="w-8 h-8 text-primary" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-primary">No Accounts Available</h3>
+                  <p className="text-tertiary max-w-md">
+                    There are no AWS accounts available in your organization.
+                  </p>
+                  <p className="text-sm text-muted">Contact your administrator for access to AWS accounts.</p>
+                </div>
+              </>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* Credentials Modal */}
-      {showCredentials && credentials && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowCredentials(false)}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '24px',
-            width: '90%',
-            maxWidth: '600px',
-            maxHeight: '90vh',
-            overflow: 'auto',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-          }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ 
-              fontSize: '18px', 
-              marginTop: 0, 
-              marginBottom: '16px' 
-            }}>
-              AWS Credentials for {selectedRole}
-            </h3>
-            
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Access Key ID:</div>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#f5f5f5'
-                }}>
-                  <code style={{ wordBreak: 'break-all' }}>{credentials.accessKeyId}</code>
-                  <button 
-                    onClick={() => copyToClipboard(credentials.accessKeyId)}
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '4px',
-                      padding: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Copy size={14} />
-                  </button>
-                </div>
-              </div>
-              
-              <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Secret Access Key:</div>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#f5f5f5'
-                }}>
-                  <code style={{ wordBreak: 'break-all' }}>{credentials.secretAccessKey}</code>
-                  <button 
-                    onClick={() => copyToClipboard(credentials.secretAccessKey)}
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '4px',
-                      padding: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Copy size={14} />
-                  </button>
-                </div>
-              </div>
-              
-              <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Session Token:</div>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#f5f5f5'
-                }}>
-                  <code style={{ 
-                    wordBreak: 'break-all', 
-                    maxHeight: '100px', 
-                    overflow: 'auto' 
-                  }}>
-                    {credentials.sessionToken}
-                  </code>
-                  <button 
-                    onClick={() => copyToClipboard(credentials.sessionToken)}
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '4px',
-                      padding: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <Copy size={14} />
-                  </button>
-                </div>
-              </div>
-              
-              <div>
-                <div style={{ fontWeight: 500, marginBottom: '4px' }}>Expiration:</div>
-                <div style={{ 
-                  padding: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#f5f5f5'
-                }}>
-                  {credentials.expiration}
-                </div>
-              </div>
+      {/* Status Footer */}
+      {((selectedTab === 'quick-access' && quickAccessRoles.length > 0) || (selectedTab !== 'quick-access' && filteredAccounts.length > 0)) && (
+        <div className="glass-card p-4 animate-slide-in">
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center space-x-4">
+              <span className="text-tertiary">
+                {selectedTab === 'quick-access' ? (
+                  <>
+                    Showing <span className="font-medium text-primary">{quickAccessRoles.length}</span> quick access role{quickAccessRoles.length !== 1 ? 's' : ''}
+                  </>
+                ) : (
+                  <>
+                    Showing <span className="font-medium text-primary">{filteredAccounts.length}</span> account{filteredAccounts.length !== 1 ? 's' : ''}
+                  </>
+                )}
+              </span>
+              {searchTerm && selectedTab !== 'quick-access' && (
+                <span className="text-muted">
+                  matching <span className="font-mono text-primary">"{searchTerm}"</span>
+                </span>
+              )}
             </div>
             
-            <div style={{ 
-              marginTop: '16px', 
-              display: 'flex', 
-              justifyContent: 'space-between' 
-            }}>
-              <button
-                onClick={() => {
-                  const envFormat = `export AWS_ACCESS_KEY_ID=${credentials.accessKeyId}
-export AWS_SECRET_ACCESS_KEY=${credentials.secretAccessKey}
-export AWS_SESSION_TOKEN=${credentials.sessionToken}`;
-                  copyToClipboard(envFormat);
-                }}
-                style={{
-                  backgroundColor: '#f0f0f0',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                  cursor: 'pointer'
-                }}
-              >
-                Copy as ENV Variables
-              </button>
-              
-              <button
-                onClick={() => setShowCredentials(false)}
-                style={{
-                  backgroundColor: 'var(--color-accent)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                  cursor: 'pointer'
-                }}
-              >
-                Close
-              </button>
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-tertiary">Live</span>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Loading overlay for credentials */}
-      {isLoadingCreds && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            padding: '24px',
-            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-          }}>
-            Loading credentials...
           </div>
         </div>
       )}

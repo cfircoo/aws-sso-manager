@@ -1,14 +1,17 @@
 import { AwsAccount } from '../types/aws';
-import { Star, Copy, Terminal, Check, Bookmark, ExternalLink } from 'lucide-react';
+import { Star, Copy, Terminal, Check, Bookmark, ExternalLink, Settings, Box, ChevronDown } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useQuickAccessRoles } from '../hooks/useQuickAccessRoles';
 import { useSsoPortalUrl } from './common/SsoPortalUrl';
+import KubernetesClustersDialog from './KubernetesClustersDialog';
+import Portal from './Portal';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface AccountItemProps {
   account: AwsAccount;
   isFavorite: boolean;
-  toggleFavorite: (accountId: string) => void;
+  toggleFavorite: (accountId: string, accountName?: string) => void;
   onRoleSelect: (accountId: string, roleName: string) => void;
   onOpenTerminal: (accountId: string, roleName: string, isSystemTerminal?: boolean) => void;
   onProfileChanged: () => void;
@@ -42,6 +45,8 @@ const AccountItem = ({
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [credentials, setCredentials] = useState<any>(null);
   const [isLoadingCreds, setIsLoadingCreds] = useState(false);
+  const [showKubernetes, setShowKubernetes] = useState(false);
+  const [kubernetesRole, setKubernetesRole] = useState<string | null>(null);
   const { isQuickAccess, toggleQuickAccess } = useQuickAccessRoles();
   
   // Get the SSO URL generator
@@ -129,13 +134,9 @@ const AccountItem = ({
     try {
       // Use only window.awsSso to avoid TypeScript errors
       if (window.awsSso && window.awsSso.setDefaultProfile) {
-        const result = await window.awsSso.setDefaultProfile(accountId, roleName);
-        if (result.success) {
-          alert(`Default profile updated successfully:\nAccount: ${accountId}\nRole: ${roleName}`);
-          onProfileChanged();
-        } else {
-          alert(`Failed to update default profile: ${result.message || 'Unknown error'}`);
-        }
+        await window.awsSso.setDefaultProfile(accountId, roleName);
+        alert(`Default profile updated successfully:\nAccount: ${accountId}\nRole: ${roleName}`);
+        onProfileChanged();
       } else {
         console.error('setDefaultProfile method not available');
         alert('Error: Profile update functionality not available.');
@@ -171,251 +172,265 @@ const AccountItem = ({
     }
   };
 
+  const handleShowKubernetes = (roleName: string) => {
+    console.log('K8s button clicked for role:', roleName);
+    setKubernetesRole(roleName);
+    setShowKubernetes(true);
+    console.log('K8s dialog state set to:', true);
+  };
+
   // Log any errors
   if (error) {
     console.error(`Error loading roles for ${account.accountId}:`, error);
   }
 
   return (
-    <div>
-      <div 
-        onClick={() => setIsExpanded(!isExpanded)}
-        style={{
-          padding: '12px 16px',
-          backgroundColor: 'var(--color-bg-secondary)',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: '12px',
-          cursor: 'pointer',
-          borderBottom: isExpanded ? 'none' : '1px solid var(--color-border)'
-        }}
-      >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFavorite(account.accountId);
-          }}
-          style={{
-            background: 'none',
-            border: '1px solid var(--color-border)',
-            borderRadius: '4px',
-            padding: '4px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '28px',
-            height: '28px'
-          }}
+    <TooltipProvider>
+      <div className="glass-card mb-2 transition-all duration-300 hover:shadow-xl group animate-slide-in">
+        {/* Main Account Header */}
+        <div 
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center justify-between p-4 cursor-pointer"
         >
-          <Star
-            size={16}
-            fill={isFavorite ? "currentColor" : "none"}
-            style={{
-              color: isFavorite ? 'var(--color-warning)' : 'var(--color-text-secondary)'
-            }}
-          />
-        </button>
-        <div style={{ flex: 1 }}>
-          <div style={{
-            fontSize: '16px',
-            fontWeight: 500,
-            color: 'var(--color-text-primary)',
-            marginBottom: '4px'
-          }}>
-            {account.accountName || account.accountId}
-          </div>
-          <div style={{
-            fontSize: '14px',
-            color: 'var(--color-text-secondary)'
-          }}>
-            {account.accountId} • {account.emailAddress}
+          <div className="flex items-center space-x-4 flex-1">
+            {/* Favorite Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFavorite(account.accountId, account.accountName || account.accountId);
+                  }}
+                  className={`
+                    favorite-star-button btn-secondary p-2 transition-all duration-300 hover:scale-110 group
+                    ${isFavorite ? 'is-favorite' : 'hover:text-yellow-400 hover:bg-yellow-500/5 hover:border-yellow-500/20'}
+                  `}
+                >
+                  <Star
+                    size={16}
+                    fill={isFavorite ? "currentColor" : "none"}
+                    className={`
+                      favorite-star-icon transition-all duration-300 
+                      ${isFavorite ? 'is-favorite' : 'group-hover:text-yellow-400 group-hover:scale-110'}
+                    `}
+                  />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="tooltip-content">
+                <span className="flex items-center gap-2">
+                  <Star size={12} fill={isFavorite ? "currentColor" : "none"} />
+                  {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                </span>
+              </TooltipContent>
+            </Tooltip>
+
+          {/* Account Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-3 mb-1">
+              <h3 className="text-lg font-semibold text-primary truncate">
+                {account.accountName || account.accountId}
+              </h3>
+              {isDefaultProfile && (
+                <span className="badge badge-success animate-pulse">
+                  Default
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-4 text-sm text-tertiary">
+              <span className="font-mono">{account.accountId}</span>
+              {account.emailAddress && (
+                <>
+                  <span>•</span>
+                  <span className="truncate">{account.emailAddress}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
-        {isDefaultProfile && (
-          <div style={{
-            backgroundColor: 'rgba(var(--color-success-rgb), 0.1)',
-            color: 'var(--color-success)',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            fontWeight: 500
-          }}>
-            Default Profile
-          </div>
-        )}
-        <div style={{
-          marginLeft: '16px',
-          transform: `rotate(${isExpanded ? '180deg' : '0deg'})`,
-          transition: 'transform 0.2s ease'
-        }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-secondary)" strokeWidth="2">
-            <path d="M6 9l6 6 6-6"/>
-          </svg>
-        </div>
+
+        {/* Expand Icon */}
+        <ChevronDown
+          className={`
+            w-5 h-5 text-tertiary transition-transform duration-300
+            ${isExpanded ? 'transform rotate-180' : ''}
+            group-hover:text-primary
+          `}
+        />
       </div>
 
       {/* Roles Section */}
       {isExpanded && (
-        <div style={{
-          padding: '16px',
-          backgroundColor: 'var(--color-bg-primary)',
-          border: '1px solid var(--color-border)',
-          borderTop: 'none',
-          borderBottomLeftRadius: '4px',
-          borderBottomRightRadius: '4px'
-        }}>
+        <div className="border-t border-glass-border bg-bg-surface/50 backdrop-blur-sm">
           {isLoading ? (
-            <div style={{ 
-              textAlign: 'center',
-              color: 'var(--color-text-secondary)',
-              padding: '8px'
-            }}>
-              Loading roles...
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center space-x-2 text-tertiary">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <span>Loading roles...</span>
+              </div>
             </div>
           ) : displayRoles.length > 0 ? (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              {displayRoles.map((role) => (
+            <div className="p-4 space-y-3">
+              {displayRoles.map((role, index) => (
                 <div 
                   key={role.roleName}
-                  style={{
-                    backgroundColor: 'var(--color-bg-secondary)',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: '4px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
+                  className="glass-card p-4 animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{role.roleName}</div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleQuickAccess(account.accountId, role.roleName, account.accountName);
-                      }}
-                      title={isQuickAccess(account.accountId, role.roleName) ? "Remove from Quick Access" : "Add to Quick Access"}
-                      style={{
-                        backgroundColor: 'transparent',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: isQuickAccess(account.accountId, role.roleName) ? 'var(--color-accent)' : 'var(--color-text-secondary)'
-                      }}
-                    >
-                      <Bookmark 
-                        size={16} 
-                        fill={isQuickAccess(account.accountId, role.roleName) ? "currentColor" : "none"}
-                      />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCopyCredentials(account.accountId, role.roleName);
-                      }}
-                      title="Copy Credentials"
-                      style={{
-                        backgroundColor: 'transparent',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--color-text-secondary)'
-                      }}
-                    >
-                      <Copy size={16} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenAwsConsole(account.accountId, role.roleName);
-                      }}
-                      title="Open AWS Console"
-                      style={{
-                        backgroundColor: 'var(--color-accent)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <ExternalLink size={16} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenTerminal(account.accountId, role.roleName, true);
-                      }}
-                      title="Open System Terminal (zsh)"
-                      style={{
-                        backgroundColor: '#2e7d32',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Terminal size={16} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSetDefaultProfile(account.accountId, role.roleName);
-                      }}
-                      title="Set as Default Profile"
-                      style={{
-                        backgroundColor: 'transparent',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: '4px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--color-text-secondary)'
-                      }}
-                    >
-                      <Check size={16} />
-                    </button>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-gradient-to-r from-primary to-secondary rounded-full"></div>
+                      <span className="font-medium text-primary">{role.roleName}</span>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      {/* Quick Access Toggle */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleQuickAccess(account.accountId, role.roleName, account.accountName);
+                            }}
+                            className={`
+                              btn-secondary p-2 transition-all duration-200 hover:scale-110
+                              ${isQuickAccess(account.accountId, role.roleName) 
+                                ? 'text-accent bg-accent/10 border-accent/30' 
+                                : 'hover:text-accent'
+                              }
+                            `}
+                          >
+                            <Bookmark 
+                              size={14} 
+                              fill={isQuickAccess(account.accountId, role.roleName) ? "currentColor" : "none"}
+                            />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="tooltip-content">
+                          <span className="flex items-center gap-2">
+                            <Bookmark size={12} fill={isQuickAccess(account.accountId, role.roleName) ? "currentColor" : "none"} />
+                            {isQuickAccess(account.accountId, role.roleName) ? "Remove from Quick Access" : "Add to Quick Access"}
+                          </span>
+                        </TooltipContent>
+                      </Tooltip>
+
+                      {/* Copy Credentials */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyCredentials(account.accountId, role.roleName);
+                            }}
+                            className="btn-secondary p-2 hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200 hover:scale-110"
+                          >
+                            <Copy size={14} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="tooltip-content">
+                          <span className="flex items-center gap-2">
+                            <Copy size={12} />
+                            Copy AWS Credentials
+                          </span>
+                        </TooltipContent>
+                      </Tooltip>
+
+                      {/* AWS Console */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenAwsConsole(account.accountId, role.roleName);
+                            }}
+                            className="btn-primary p-2 hover:scale-110 transition-all duration-200"
+                          >
+                            <ExternalLink size={14} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="tooltip-content">
+                          <span className="flex items-center gap-2">
+                            <ExternalLink size={12} />
+                            Open AWS Console
+                          </span>
+                        </TooltipContent>
+                      </Tooltip>
+
+                      {/* Terminal */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenTerminal(account.accountId, role.roleName, true);
+                            }}
+                            className="btn-secondary p-2 hover:text-green-400 hover:bg-green-500/10 transition-all duration-200 hover:scale-110"
+                          >
+                            <Terminal size={14} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="tooltip-content">
+                          <span className="flex items-center gap-2">
+                            <Terminal size={12} />
+                            Open System Terminal
+                          </span>
+                        </TooltipContent>
+                      </Tooltip>
+
+                      {/* Kubernetes */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShowKubernetes(role.roleName);
+                            }}
+                            className="btn-secondary p-2 hover:text-orange-400 hover:bg-orange-500/10 transition-all duration-200 hover:scale-110"
+                          >
+                            <Box size={14} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="tooltip-content">
+                          <span className="flex items-center gap-2">
+                            <Box size={12} />
+                            View Kubernetes Clusters
+                          </span>
+                        </TooltipContent>
+                      </Tooltip>
+
+                      {/* Set Default */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSetDefaultProfile(account.accountId, role.roleName);
+                            }}
+                            className="btn-secondary p-2 hover:text-green-400 hover:bg-green-500/10 transition-all duration-200 hover:scale-110"
+                          >
+                            <Check size={14} />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="tooltip-content">
+                          <span className="flex items-center gap-2">
+                            <Check size={12} />
+                            Set as Default Profile
+                          </span>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : activeTab === 'quick-access' ? (
-            <div style={{ 
-              textAlign: 'center',
-              color: 'var(--color-text-secondary)',
-              padding: '8px'
-            }}>
-              No quick access roles for this account
+            <div className="flex flex-col items-center justify-center py-8 text-tertiary">
+              <Bookmark size={32} className="opacity-30 mb-3" />
+              <p>No quick access roles for this account</p>
             </div>
           ) : (
-            <div style={{ 
-              textAlign: 'center',
-              color: 'var(--color-text-secondary)',
-              padding: '8px'
-            }}>
-              No roles available
+            <div className="flex flex-col items-center justify-center py-8 text-tertiary">
+              <Settings size={32} className="opacity-30 mb-3" />
+              <p>No roles available</p>
             </div>
           )}
         </div>
@@ -423,207 +438,125 @@ const AccountItem = ({
 
       {/* Credentials Modal */}
       {showCredentials && credentials && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowCredentials(false)}>
-          <div style={{
-            backgroundColor: 'var(--color-bg-secondary)',
-            borderRadius: '8px',
-            padding: '24px',
-            width: '90%',
-            maxWidth: '600px',
-            maxHeight: '90vh',
-            overflow: 'auto',
-            boxShadow: '0 4px 6px var(--color-shadow)'
-          }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ 
-              fontSize: '18px', 
-              marginTop: 0, 
-              marginBottom: '16px',
-              color: 'var(--color-text-primary)'
-            }}>
-              AWS Credentials for {account.accountName || account.accountId} - {selectedRole}
-            </h3>
-            
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-primary)' }}>Access Key ID:</div>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--color-bg-primary)'
-                }}>
-                  <code style={{ wordBreak: 'break-all', color: 'var(--color-text-primary)' }}>{credentials.accessKeyId}</code>
-                  <button 
-                    onClick={() => copyToClipboard(credentials.accessKeyId)}
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: '4px',
-                      padding: '4px',
-                      cursor: 'pointer',
-                      color: 'var(--color-text-secondary)'
-                    }}
-                  >
-                    <Copy size={14} />
-                  </button>
+        <Portal>
+          <div className="modal-backdrop fixed inset-0 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in"
+               onClick={() => setShowCredentials(false)}>
+            <div className="modal-glass-enhanced modal-content-enhanced w-full max-w-2xl max-h-[90vh] overflow-auto m-4" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gradient mb-6">
+                  AWS Credentials • {account.accountName || account.accountId} • {selectedRole}
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* Access Key ID */}
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-2">Access Key ID</label>
+                    <div className="credential-display flex items-center justify-between">
+                      <code className="text-sm text-primary break-all">{credentials.accessKeyId}</code>
+                      <button 
+                        onClick={() => copyToClipboard(credentials.accessKeyId)}
+                        className="btn-secondary p-2 ml-3 hover:scale-110 transition-all duration-200"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Secret Access Key */}
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-2">Secret Access Key</label>
+                    <div className="credential-display flex items-center justify-between">
+                      <code className="text-sm text-primary break-all">{credentials.secretAccessKey}</code>
+                      <button 
+                        onClick={() => copyToClipboard(credentials.secretAccessKey)}
+                        className="btn-secondary p-2 ml-3 hover:scale-110 transition-all duration-200"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Session Token */}
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-2">Session Token</label>
+                    <div className="credential-display flex items-center justify-between">
+                      <code className="text-sm text-primary break-all max-h-24 overflow-auto">
+                        {credentials.sessionToken}
+                      </code>
+                      <button 
+                        onClick={() => copyToClipboard(credentials.sessionToken)}
+                        className="btn-secondary p-2 ml-3 hover:scale-110 transition-all duration-200"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expiration */}
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-2">Expiration</label>
+                                      <div className="credential-display">
+                    <span className="text-sm text-warning">{credentials.expiration}</span>
+                  </div>
+                  </div>
                 </div>
-              </div>
-              
-              <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-primary)' }}>Secret Access Key:</div>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--color-bg-primary)'
-                }}>
-                  <code style={{ wordBreak: 'break-all', color: 'var(--color-text-primary)' }}>{credentials.secretAccessKey}</code>
-                  <button 
-                    onClick={() => copyToClipboard(credentials.secretAccessKey)}
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: '4px',
-                      padding: '4px',
-                      cursor: 'pointer',
-                      color: 'var(--color-text-secondary)'
-                    }}
-                  >
-                    <Copy size={14} />
-                  </button>
-                </div>
-              </div>
-              
-              <div style={{ marginBottom: '8px' }}>
-                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-primary)' }}>Session Token:</div>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--color-bg-primary)'
-                }}>
-                  <code style={{ 
-                    wordBreak: 'break-all', 
-                    maxHeight: '100px', 
-                    overflow: 'auto',
-                    color: 'var(--color-text-primary)'
-                  }}>
-                    {credentials.sessionToken}
-                  </code>
-                  <button 
-                    onClick={() => copyToClipboard(credentials.sessionToken)}
-                    style={{
-                      backgroundColor: 'transparent',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: '4px',
-                      padding: '4px',
-                      cursor: 'pointer',
-                      color: 'var(--color-text-secondary)'
-                    }}
-                  >
-                    <Copy size={14} />
-                  </button>
-                </div>
-              </div>
-              
-              <div>
-                <div style={{ fontWeight: 500, marginBottom: '4px', color: 'var(--color-text-primary)' }}>Expiration:</div>
-                <div style={{ 
-                  padding: '8px',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--color-bg-primary)',
-                  color: 'var(--color-text-primary)'
-                }}>
-                  {credentials.expiration}
-                </div>
-              </div>
-            </div>
-            
-            <div style={{ 
-              marginTop: '16px', 
-              display: 'flex', 
-              justifyContent: 'space-between' 
-            }}>
-              <button
-                onClick={() => {
-                  const envFormat = `export AWS_ACCESS_KEY_ID=${credentials.accessKeyId}
+                
+                <div className="flex justify-between items-center mt-6 pt-6 border-t border-glass-border">
+                  <button
+                    onClick={() => {
+                      const envFormat = `export AWS_ACCESS_KEY_ID=${credentials.accessKeyId}
 export AWS_SECRET_ACCESS_KEY=${credentials.secretAccessKey}
 export AWS_SESSION_TOKEN=${credentials.sessionToken}`;
-                  copyToClipboard(envFormat);
-                }}
-                style={{
-                  backgroundColor: 'var(--color-bg-primary)',
-                  color: 'var(--color-text-primary)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                  cursor: 'pointer'
-                }}
-              >
-                Copy as ENV Variables
-              </button>
-              
-              <button
-                onClick={() => setShowCredentials(false)}
-                style={{
-                  backgroundColor: 'var(--color-accent)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '8px 16px',
-                  cursor: 'pointer'
-                }}
-              >
-                Close
-              </button>
+                      copyToClipboard(envFormat);
+                    }}
+                    className="btn-secondary hover:scale-105 transition-all duration-200"
+                  >
+                    Copy as ENV Variables
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowCredentials(false)}
+                    className="btn-primary hover:scale-105 transition-all duration-200"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
 
       {/* Loading overlay for credentials */}
       {isLoadingCreds && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'var(--color-bg-secondary)',
-            color: 'var(--color-text-primary)',
-            borderRadius: '8px',
-            padding: '24px',
-            boxShadow: '0 4px 6px var(--color-shadow)'
-          }}>
-            Loading credentials...
+        <Portal>
+          <div className="modal-backdrop fixed inset-0 backdrop-blur-sm flex items-center justify-center z-[9999]">
+            <div className="modal-glass-enhanced modal-content-enhanced p-6 flex items-center space-x-3">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-primary">Loading credentials...</span>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
-    </div>
+
+      {/* Kubernetes Clusters Dialog */}
+      {showKubernetes && kubernetesRole && accessToken && (
+        <Portal>
+          <KubernetesClustersDialog
+            isOpen={showKubernetes}
+            onClose={() => {
+              setShowKubernetes(false);
+              setKubernetesRole(null);
+            }}
+            accountId={account.accountId}
+            accountName={account.accountName || 'Unnamed Account'}
+            roleName={kubernetesRole}
+            accessToken={accessToken}
+          />
+        </Portal>
+      )}
+      </div>
+    </TooltipProvider>
   );
 };
 

@@ -41,16 +41,12 @@ export const ThemeProvider = ({ children }: ThemeProviderProps): JSX.Element => 
   const isDarkMode = theme === 'dark';
 
   useEffect(() => {
-    // Update document with theme class
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    // Update document with theme attribute
+    document.documentElement.setAttribute('data-theme', theme);
     
     // Store theme preference
     localStorage.setItem('theme', theme);
-  }, [theme, isDarkMode]);
+  }, [theme]);
 
   // Listen for system preference changes
   useEffect(() => {

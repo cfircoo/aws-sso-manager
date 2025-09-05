@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface SessionTimerProps {
-  sessionTimeLeft?: string | null;
+  sessionTimeLeft?: string | number | null;
   sessionTimeStatus?: 'normal' | 'warning' | 'critical';
   onRenewSession?: () => void;
 }
@@ -14,38 +14,15 @@ export const SessionTimer = ({
   // Show an "Expired" message instead of returning null
   if (!sessionTimeLeft) {
     return (
-      <div style={{ 
-        display: 'flex',
-        alignItems: 'center',
-        marginLeft: '16px',
-        gap: '8px'
-      }}>
-        <span style={{ 
-          fontSize: '0.875rem',
-          color: 'var(--color-error)', 
-          fontWeight: 'bold'
-        }}>
+      <div className="flex items-center space-x-2 px-4 py-2 rounded-full border backdrop-blur-sm bg-red-500/10 border-red-500/30 text-red-600">
+        <div className="w-2 h-2 rounded-full animate-pulse bg-current"></div>
+        <span className="text-sm font-medium font-bold">
           Session: Expired
         </span>
         {onRenewSession && (
           <button
             onClick={onRenewSession}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '2px 6px',
-              fontSize: '0.75rem',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)', // Translucent red
-              color: 'var(--color-error)',
-              border: '1px solid var(--color-error)',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontWeight: 'bold',
-              height: '22px',
-              lineHeight: 1
-            }}
+            className="btn-secondary text-xs px-2 py-1 ml-2 transition-all duration-200 hover:bg-red-500/20"
             title="Renew your AWS SSO session"
           >
             Login
@@ -56,13 +33,20 @@ export const SessionTimer = ({
   }
   
   // Format time as hh:mm:ss
-  const formatTime = (timeString: string) => {
-    // Check if it's already a formatted string
-    if (timeString.includes(':')) return timeString;
+  const formatTime = (timeInput: string | number) => {
+    // If it's already a formatted string, return it
+    if (typeof timeInput === 'string' && timeInput.includes(':')) {
+      return timeInput;
+    }
     
-    // Assume it's milliseconds
-    const milliseconds = parseInt(timeString, 10);
-    if (isNaN(milliseconds)) return timeString;
+    // Convert to number (milliseconds)
+    let milliseconds: number;
+    if (typeof timeInput === 'number') {
+      milliseconds = timeInput;
+    } else {
+      milliseconds = parseInt(timeInput, 10);
+      if (isNaN(milliseconds)) return timeInput;
+    }
     
     // Check for expired session (zero or negative milliseconds)
     if (milliseconds <= 0) return "Expired";
@@ -87,52 +71,28 @@ export const SessionTimer = ({
   const isExpired = formattedTime === "Expired";
   
   return (
-    <div style={{ 
-      display: 'flex',
-      alignItems: 'center',
-      marginLeft: '16px',
-      gap: '8px'
-    }}>
-      <span style={{ 
-        fontSize: '0.875rem',
-        color: isExpired ? 'var(--color-error)' : statusColor,
-        fontWeight: isExpired || sessionTimeStatus !== 'normal' ? 'bold' : 'normal'
-      }}>
+    <div className={`
+      flex items-center space-x-2 px-4 py-2 rounded-full border backdrop-blur-sm
+      transition-all duration-300 ${
+        isExpired || sessionTimeStatus === 'critical' ? 'bg-red-500/10 border-red-500/30 text-red-600' :
+        sessionTimeStatus === 'warning' ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-600' :
+        'bg-green-500/10 border-green-500/30 text-green-600'
+      }
+    `}>
+      <div className="w-2 h-2 rounded-full animate-pulse bg-current"></div>
+      <span className="text-sm font-medium">
         Session: {formattedTime}
       </span>
       {onRenewSession && (
         <button
           onClick={onRenewSession}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2px 6px',
-            fontSize: '0.75rem',
-            backgroundColor: isExpired || sessionTimeStatus === 'critical' 
-              ? 'rgba(239, 68, 68, 0.1)' // Translucent red
-              : sessionTimeStatus === 'warning' 
-                ? 'rgba(251, 191, 36, 0.1)' // Translucent amber
-                : 'var(--color-bg-secondary)',
-            color: isExpired || sessionTimeStatus === 'critical' 
-              ? 'var(--color-error)' 
-              : sessionTimeStatus === 'warning' 
-                ? 'var(--color-warning)' 
-                : 'var(--color-text-primary)',
-            border: `1px solid ${
-              isExpired || sessionTimeStatus === 'critical' 
-                ? 'var(--color-error)' 
-                : sessionTimeStatus === 'warning' 
-                  ? 'var(--color-warning)' 
-                  : 'var(--color-border)'
-            }`,
-            borderRadius: '4px',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            fontWeight: isExpired || sessionTimeStatus !== 'normal' ? 'bold' : 'normal',
-            height: '22px',
-            lineHeight: 1
-          }}
+          className={`
+            btn-secondary text-xs px-2 py-1 ml-2 transition-all duration-200
+            ${isExpired || sessionTimeStatus === 'critical' ? 'hover:bg-red-500/20' :
+              sessionTimeStatus === 'warning' ? 'hover:bg-yellow-500/20' :
+              'hover:bg-primary/10'
+            }
+          `}
           title="Renew your AWS SSO session"
         >
           {isExpired ? "Login" : "Renew"}

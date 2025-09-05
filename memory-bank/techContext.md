@@ -14,6 +14,7 @@
 - **@aws-sdk/client-ecr** - ECR integration
 - **@aws-sdk/client-organizations** - Organization info
 - **@aws-sdk/credential-provider-sso** - Credential management
+- **@aws-sdk/client-eks** v3.777.0 - EKS cluster management
 
 ### UI Framework
 - **shadcn/ui** - Component library built on:
@@ -46,6 +47,7 @@
 - npm or yarn package manager
 - AWS CLI v2 (optional, for some features)
 - Docker (for ECR features)
+- kubectl (optional, for Kubernetes features)
 
 ### Environment Setup
 ```bash
@@ -155,6 +157,7 @@ src/
 - ECR for container registry
 - CodeArtifact for package management
 - Organizations for account listing
+- EKS for Kubernetes cluster management
 
 ### System Integration
 - OS keychain for secure storage
