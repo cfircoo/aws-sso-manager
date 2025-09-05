@@ -10,3 +10,8 @@ node_modules/
 */launch.json
 
 .vscode/
+
+.DS_Store
+certificate.p12
+certificate.pem
+private.key
