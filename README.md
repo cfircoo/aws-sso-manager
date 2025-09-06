@@ -33,6 +33,15 @@ A modern desktop application built with Electron and React for managing AWS SSO 
 
 ### macOS
 
+#### Using Homebrew (Recommended):
+```bash
+# Add the tap
+brew tap cfircoo/tap
+
+# Install AWS SSO Manager
+brew install --cask aws-sso-manager
+```
+
 #### Using the installer:
 1. Download the latest release from the [Releases](https://github.com/cfircoo/aws-sso-manager/releases) page
 2. Open the downloaded `.dmg` file
