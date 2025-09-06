@@ -226,22 +226,7 @@ AWS credentials and configurations are stored in the standard AWS CLI locations:
 
 ## License
 
-This project is open source under the MIT License with Commons Clause - see the [LICENSE](LICENSE) file for details. This means you can freely use, modify, and distribute the code, but you cannot sell the software or use it for commercial purposes without explicit permission. The Commons Clause restriction applies specifically to commercial use and selling of the software.
-
-## Version History
-
-- v1.0.5 - Latest release
-  - Added account refresh functionality
-  - Added direct AWS Console access via role
-  - Improved search interface with better layout
-  - Added account counter badge on tabs
-  - Enhanced loading indicators for better UX
-  - Various UI improvements and bug fixes
-- v1.0.4 - Previous stable release
-  - Improved UI/UX
-  - Added ECR and CodeArtifact support
-  - Bug fixes and performance improvements
-  - Added Windows installer support
+This project is open source under the MIT License with Commons Clause - see the [LICENSE](LICENSE) file for details. This means you can freely use, modify, and distribute the code, but you cannot sell the software or use it for commercial purposes without explicit permission. The Commons Clause restriction applies specifically to commercial use and selling of the software.   
 
 ## Support
 
